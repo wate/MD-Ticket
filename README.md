@@ -1,8 +1,6 @@
 MD-Ticket
 =========================
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
 軽量なテキストベースのチケット管理の仕組みです。  
 プロジェクト管理ツールを使うほどでもないアイデアやタスクをMarkdownで記録します。
 
@@ -16,13 +14,32 @@ MD-Ticket
 ### インストール
 
 ```bash
-# ワンライナーでインストール（準備中）
-curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/main/install.sh | bash
+# ワンライナーでインストール
+curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash
+
+# カスタムディレクトリにインストール
+TICKET_DIR=.custom curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash
+
+# または
+curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash -s -- --dir=.custom
+
+# 既存環境を最新版に更新（テンプレート・ドキュメントのみ上書き）
+curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash -s -- --force
 
 # 手動インストール
 git clone https://github.com/wate/MD-Ticket.git
 cp -r MD-Ticket/.ticket /path/to/your/project/
 ```
+
+#### オプション
+
+- `--dir=DIR` または `-d DIR`: インストール先ディレクトリ指定 (デフォルト: `.ticket`)
+- `--force` または `-f`: 既存環境を上書き更新(既存チケットは保持)
+- `--help` または `-h`: ヘルプ表示
+
+#### 環境変数
+
+- `TICKET_DIR`: インストール先ディレクトリ (`--dir`オプションで上書き可能)
 
 ### 新規プロジェクトでの利用
 
@@ -39,22 +56,31 @@ cp -r MD-Ticket/.ticket /path/to/your/project/
 
 ### 既存プロジェクトへの導入
 
-既存プロジェクトに導入する場合、以下の手順で必要なファイルをコピーします。
+既存プロジェクトに導入する場合、以下のいずれかの方法で導入できます。
 
-1. この仕組みを使用しているプロジェクトから`.ticket/`ディレクトリをコピー
-2. 既存のチケットファイルは削除し、テンプレートと構造のみを残す
-3. プロジェクトに合わせてテンプレートをカスタマイズ
-4. **重要**: プロジェクトルートの`AGENTS.md`にチケット管理情報を統合（後述の「AGENTS.md統合ガイド」を参照）
+#### 推奨: ワンライナーインストール
 
 ```bash
-# コピー元プロジェクトから必要なファイルのみをコピー
-cp -r /path/to/source/.ticket/_template /path/to/target/.ticket/
-cp -r /path/to/source/.ticket/_shared /path/to/target/.ticket/
-cp /path/to/source/.ticket/{README.md,AGENTS.md} /path/to/target/.ticket/
-
-# 空のディレクトリを作成
-mkdir -p /path/to/target/.ticket/{_files,_archive/_files,bug,idea,request,task}
+# プロジェクトルートで実行
+curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash
 ```
+
+#### 手動インストール
+
+```bash
+# リポジトリをクローンしてコピー
+git clone https://github.com/wate/MD-Ticket.git
+cp -r MD-Ticket/.ticket /path/to/your/project/
+rm -rf MD-Ticket
+
+# または既存プロジェクトからコピー
+cp -r /path/to/source/.ticket /path/to/target/
+```
+
+#### AGENTS.md統合 (重要)
+
+どちらの方法でも、プロジェクトルートの`AGENTS.md`にチケット管理情報を統合してください
+(後述の「AGENTS.md統合ガイド」を参照)
 
 ディレクトリ構造
 -------------------------
@@ -64,7 +90,7 @@ mkdir -p /path/to/target/.ticket/{_files,_archive/_files,bug,idea,request,task}
   ├ README.md      => このファイル
   ├ AGENTS.md      => エージェント向けガイドライン
   ├ LICENSE        => MITライセンス
-  ├ config.yml     => チケット種別の設定ファイル（任意）
+  ├ config.yml     => チケット種別の設定ファイル(任意)
   ├ _archive/      => アーカイブ済みチケットを年月別に保存するディレクトリ
   │  └ _files/        => アーカイブ済みチケットの参考資料を格納するディレクトリ
   ├ _files/        => チケットに関連する参考資料を格納するディレクトリ
@@ -96,7 +122,7 @@ mkdir -p /path/to/target/.ticket/{_files,_archive/_files,bug,idea,request,task}
      - バグ -> `bug/`
 2. 更新・整理
    - 追加情報があれば既存チケットを直接更新  
-   - 状況に応じてディレクトリを移動（例: アイデア→タスク）  
+   - 状況に応じてディレクトリを移動(例: アイデア→タスク)  
      例: `mv request/add-feature.md task/add-feature.md`
    - 完了・不要になったチケットは削除または必要に応じてアーカイブ  
 3. チケットのクローズ
@@ -110,14 +136,14 @@ mkdir -p /path/to/target/.ticket/{_files,_archive/_files,bug,idea,request,task}
    - 重要な判断は `_shared/adr/` にADRとして記録  
    - 共通メモや用語集は `_shared/` に配置  
 6. 参考資料の管理
-   - チケットに関連するファイル（ドラフト、スクリーンショット、参考資料等）は `_files/` に配置  
+   - チケットに関連するファイル(ドラフト、スクリーンショット、参考資料等)は `_files/` に配置  
    - ファイル名は `{ticket-name}-{suffix}.{ext}` 形式を推奨  
      例: `add-feature-draft.md`, `fix-login-screenshot.png`  
    - 複数ファイルがある場合はサフィックスで区別  
      例: `add-feature-draft-requirements.md`, `add-feature-draft-design.md`  
    - チケット本文から相対パスでリンク  
      例: `[ドラフト](_files/add-feature-draft.md)`  
-7. Git管理（任意）
+7. Git管理 (任意)
    - Gitを利用すれば履歴追跡と復元が可能  
    - 個人プロジェクトなどの場合は非Gitでも運用可  
 
@@ -134,11 +160,11 @@ mkdir -p /path/to/target/.ticket/{_files,_archive/_files,bug,idea,request,task}
 | タスク   | 実行すべき作業       | 前提・内容・背景                |
 | バグ     | 不具合の報告         | 現象・再現手順・期待する動作    |
 
-設定ファイル（任意）
+設定ファイル(任意)
 -------------------------
 
 チケット種別をカスタマイズしたい場合、`.ticket/config.yml`で管理できます。  
-設定ファイルがない場合はデフォルトの4種別（bug/task/idea/request）が使用されます。
+設定ファイルがない場合はデフォルトの4種別(bug/task/idea/request)が使用されます。
 
 詳細な設定方法やカスタム種別の追加例は[AGENTS.md](AGENTS.md)を参照してください。
 
@@ -192,11 +218,11 @@ mkdir -p /path/to/target/.ticket/{_files,_archive/_files,bug,idea,request,task}
 AGENTS.md統合ガイド
 -------------------------
 
-**重要**: AIエージェント（GitHub Copilot、Claude、ChatGPTなど）がMD-Ticketの存在と使い方を認識できるようにするため、プロジェクトルートの`AGENTS.md`にチケット管理情報を統合することを強く推奨します。
+**重要**: AIエージェント(GitHub Copilot、Claude、ChatGPTなど)がMD-Ticketの存在と使い方を認識できるようにするため、プロジェクトルートの`AGENTS.md`にチケット管理情報を統合することを強く推奨します。
 
 ### 統合の必要性
 
-AIエージェント（GitHub Copilot、Claude、ChatGPT等）は、プロジェクトルートの指示ファイルを優先的に参照します。`.ticket/`配下のドキュメントのみでは、AIがMD-Ticketの存在を認識できず、誤った場所にチケットを作成したり、チケット管理機能を利用できない可能性があります。
+AIエージェント(GitHub Copilot、Claude、ChatGPT等)は、プロジェクトルートの指示ファイルを優先的に参照します。`.ticket/`配下のドキュメントのみでは、AIがMD-Ticketの存在を認識できず、誤った場所にチケットを作成したり、チケット管理機能を利用できない可能性があります。
 
 ### 統合方法
 
@@ -245,7 +271,7 @@ AIエージェント（GitHub Copilot、Claude、ChatGPT等）は、プロジェ
 
 ### 統合後の確認
 
-1. AIエージェントで動作確認（チケット作成依頼をして正しい場所に作成されるか）
+1. AIエージェントで動作確認(チケット作成依頼をして正しい場所に作成されるか)
 2. 統合した内容がプロジェクトの他のガイドラインと矛盾しないか確認
 
 ライセンス
