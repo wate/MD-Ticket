@@ -23,12 +23,13 @@ TICKET_DIR=.custom curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/m
 # または
 curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash -s -- --dir=.custom
 
-# 既存環境を最新版に更新（テンプレート・ドキュメントのみ上書き）
+# 既存環境を最新版に更新(テンプレート・ドキュメントのみ上書き)
 curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash -s -- --force
 
 # 手動インストール
 git clone https://github.com/wate/MD-Ticket.git
 cp -r MD-Ticket/.ticket /path/to/your/project/
+rm -rf MD-Ticket
 ```
 
 #### オプション
@@ -41,46 +42,12 @@ cp -r MD-Ticket/.ticket /path/to/your/project/
 
 - `TICKET_DIR`: インストール先ディレクトリ (`--dir`オプションで上書き可能)
 
-### 新規プロジェクトでの利用
+### AGENTS.md統合 (重要)
 
-1. プロジェクトルートに `.ticket/` ディレクトリを作成
-2. 必要なディレクトリを作成
-    - テンプレート保存用: `_template/`
-    - 共有情報・ADR保存用: `_shared/adr/`
-    - 参考資料保存用: `_files/`
-    - アーカイブ保存用: `_archive/_files/`
-    - チケット分類用: `bug/`, `idea/`, `request/`, `task/`
-    - 一括作成コマンド: `mkdir -p .ticket/{_template,_shared/adr,_files,_archive/_files,bug,idea,request,task}`
-3. テンプレートファイルを配置 (後述のディレクトリ構造を参照)
-4. 必要に応じて `.gitignore` に除外設定を追加
+**AIエージェント(GitHub Copilot、Claude、ChatGPTなど)と連携する場合は必須です。**
 
-### 既存プロジェクトへの導入
-
-既存プロジェクトに導入する場合、以下のいずれかの方法で導入できます。
-
-#### 推奨: ワンライナーインストール
-
-```bash
-# プロジェクトルートで実行
-curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash
-```
-
-#### 手動インストール
-
-```bash
-# リポジトリをクローンしてコピー
-git clone https://github.com/wate/MD-Ticket.git
-cp -r MD-Ticket/.ticket /path/to/your/project/
-rm -rf MD-Ticket
-
-# または既存プロジェクトからコピー
-cp -r /path/to/source/.ticket /path/to/target/
-```
-
-#### AGENTS.md統合 (重要)
-
-どちらの方法でも、プロジェクトルートの`AGENTS.md`にチケット管理情報を統合してください
-(後述の「AGENTS.md統合ガイド」を参照)
+プロジェクトルートの`AGENTS.md`にチケット管理情報を統合してください。
+詳細は後述の「AGENTS.md統合ガイド」を参照してください。
 
 ディレクトリ構造
 -------------------------
