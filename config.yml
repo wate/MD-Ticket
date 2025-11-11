@@ -1,0 +1,17 @@
+types:
+  task:
+    label: タスク
+    template: task.md
+    description: 実行すべき作業
+  bug:
+    label: バグ報告
+    template: bug.md
+    description: 不具合の報告
+  request:
+    label: 要望
+    template: request.md
+    description: 実現してほしい希望
+  idea:
+    label: アイデア
+    template: idea.md
+    description: 発想・構想段階のメモ
