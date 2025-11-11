@@ -143,6 +143,7 @@ if [ "$FORCE_INSTALL" = false ]; then
 
     # .gitkeep作成
     touch "$TICKET_DIR/_archive/.gitkeep"
+    touch "$TICKET_DIR/_archive/_files/.gitkeep"
     touch "$TICKET_DIR/_files/.gitkeep"
     touch "$TICKET_DIR/_shared/.gitkeep"
     touch "$TICKET_DIR/_shared/adr/.gitkeep"
