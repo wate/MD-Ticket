@@ -1,0 +1,383 @@
+#!/usr/bin/env zx
+import { readFileSync, writeFileSync } from "fs";
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
+
+//#region _tools/lib/pm-tool/config.js
+const __dirname = dirname(fileURLToPath(import.meta.url));
+/**
+* 環境変数を展開する
+* ${VARIABLE_NAME}形式の文字列をprocess.env.VARIABLE_NAMEに置き換える
+*
+* @param {string} str - 展開対象の文字列
+* @returns {string} 環境変数が展開された文字列
+*/
+function expandEnvVars(str) {
+	if (typeof str !== "string") return str;
+	return str.replace(/\$\{([^}]+)\}/g, (match, varName) => {
+		return process.env[varName] || match;
+	});
+}
+/**
+* オブジェクト内のすべての環境変数を再帰的に展開する
+*
+* @param {*} obj - 展開対象のオブジェクト
+* @returns {*} 環境変数が展開されたオブジェクト
+*/
+function expandEnvVarsRecursive(obj) {
+	if (typeof obj === "string") return expandEnvVars(obj);
+	if (Array.isArray(obj)) return obj.map((item) => expandEnvVarsRecursive(item));
+	if (obj !== null && typeof obj === "object") {
+		const result = {};
+		for (const [key, value] of Object.entries(obj)) result[key] = expandEnvVarsRecursive(value);
+		return result;
+	}
+	return obj;
+}
+/**
+* config.ymlを読み込み、パースする
+*
+* @returns {Object} パースされた設定オブジェクト
+* @throws {Error} 設定ファイルが見つからない、またはパースできない場合
+*/
+function loadConfig() {
+	const configPath = resolve(__dirname, "../../../config.yml");
+	try {
+		const configContent = readFileSync(configPath, "utf8");
+		return expandEnvVarsRecursive(YAML.parse(configContent));
+	} catch (error$1) {
+		if (error$1.code === "ENOENT") throw new Error(`設定ファイルが見つかりません: ${configPath}`);
+		throw new Error(`設定ファイルの読み込みに失敗しました: ${error$1.message}`);
+	}
+}
+/**
+* PM Tool設定を取得する
+*
+* @returns {Object} PM Tool設定オブジェクト
+* @throws {Error} PM Tool設定が無効な場合
+*/
+function getPmToolConfig() {
+	const config = loadConfig();
+	if (!config.integration?.pm_tool) throw new Error("config.ymlにintegration.pm_tool設定が見つかりません");
+	const pmToolConfig = config.integration.pm_tool;
+	if (!pmToolConfig.type) throw new Error("連携ツールが設定されていません (integration.pm_tool.type)");
+	const toolName = pmToolConfig.type;
+	const toolConfig = pmToolConfig[toolName];
+	if (!toolConfig) throw new Error(`ツール "${toolName}" の設定が見つかりません`);
+	return {
+		tool: toolName,
+		config: toolConfig
+	};
+}
+
+//#endregion
+//#region _tools/lib/pm-tool/common/logger.js
+/**
+* ログレベル定義
+*/
+const LOG_LEVELS = {
+	DEBUG: 0,
+	INFO: 1,
+	WARN: 2,
+	ERROR: 3
+};
+/**
+* 現在のログレベル（環境変数PM_TOOL_LOG_LEVELで設定可能）
+*/
+const currentLogLevel = LOG_LEVELS[process.env.PM_TOOL_LOG_LEVEL?.toUpperCase()] ?? LOG_LEVELS.INFO;
+/**
+* タイムスタンプを生成する
+*
+* @returns {string} ISO形式のタイムスタンプ
+*/
+function timestamp() {
+	return (/* @__PURE__ */ new Date()).toISOString();
+}
+/**
+* ログメッセージをフォーマットする
+*
+* @param {string} level - ログレベル
+* @param {string} message - ログメッセージ
+* @param {Object} [data] - 追加データ
+* @returns {string} フォーマットされたログメッセージ
+*/
+function formatMessage(level, message, data) {
+	let formatted = `[${timestamp()}] [${level}] ${message}`;
+	if (data) formatted += ` ${JSON.stringify(data)}`;
+	return formatted;
+}
+/**
+* INFOレベルのログを出力する
+*
+* @param {string} message - ログメッセージ
+* @param {Object} [data] - 追加データ
+*/
+function info(message, data) {
+	if (currentLogLevel <= LOG_LEVELS.INFO) console.info(formatMessage("INFO", message, data));
+}
+/**
+* ERRORレベルのログを出力する
+*
+* @param {string} message - ログメッセージ
+* @param {Error|Object} [error] - エラーオブジェクトまたは追加データ
+*/
+function error(message, error$1) {
+	if (currentLogLevel <= LOG_LEVELS.ERROR) {
+		const data = error$1 instanceof Error ? {
+			message: error$1.message,
+			stack: error$1.stack
+		} : error$1;
+		console.error(formatMessage("ERROR", message, data));
+	}
+}
+
+//#endregion
+//#region _tools/lib/pm-tool/common/error.js
+/**
+* PM Tool基底エラークラス
+*/
+var PmToolError = class extends Error {
+	constructor(message, code, details) {
+		super(message);
+		this.name = "PmToolError";
+		this.code = code;
+		this.details = details;
+	}
+};
+
+//#endregion
+//#region _tools/lib/pm-tool/cli.js
+/**
+* 使用方法を表示する
+*/
+function showUsage() {
+	console.log(`
+使用方法:
+  pm-tool fetch <チケット番号>     チケット情報を取得する
+  pm-tool update <チケット番号>    チケット情報を更新する
+  pm-tool help                      ヘルプを表示する
+
+オプション:
+  --help, -h                        ヘルプを表示する
+  --version, -v                     バージョンを表示する
+
+環境変数:
+  PM_TOOL_LOG_LEVEL                 ログレベル (DEBUG, INFO, WARN, ERROR)
+                                    デフォルト: ERROR
+
+例:
+  pm-tool fetch 1234
+  pm-tool update 1234 --comment "実装完了" --status 3
+    `.trim());
+}
+/**
+* バージョン情報を表示する
+*/
+function showVersion() {
+	console.log("pm-tool version 0.1.0");
+}
+/**
+* プラグインを読み込む
+* バンドル済みプラグイン（lib/pm-tool/plugins/{toolName}.mjs）を動的にロードする
+*
+* @param {string} toolName - ツール名
+* @returns {Promise<Object>} プラグインオブジェクト
+*/
+async function loadPlugin(toolName) {
+	try {
+		const plugin = await import(`./lib/pm-tool/plugins/${toolName}.mjs`);
+		return plugin.default || plugin;
+	} catch (error$1) {
+		throw new PmToolError(`プラグイン "${toolName}" の読み込みに失敗しました`, "PLUGIN_LOAD_ERROR", {
+			toolName,
+			originalError: error$1.message
+		});
+	}
+}
+/**
+* URLからチケット番号を抽出する
+*
+* @param {string} input - チケット番号またはURL
+* @param {string} configUrl - config.ymlで設定されたURL
+* @returns {string} チケット番号
+* @throws {PmToolError} URL不一致またはチケット番号抽出失敗
+*/
+function parseTicketIdFromUrl(input, configUrl) {
+	if (!input.startsWith("http://") && !input.startsWith("https://")) return input;
+	try {
+		const inputUrl = new URL(input);
+		const baseUrl = new URL(configUrl);
+		if (inputUrl.protocol !== baseUrl.protocol || inputUrl.hostname !== baseUrl.hostname || inputUrl.port !== baseUrl.port) throw new PmToolError(`URLが設定と一致しません\n設定: ${configUrl}\n入力: ${input}`, "URL_MISMATCH", {
+			configUrl,
+			inputUrl: input
+		});
+		const match = inputUrl.pathname.match(/\/issues\/(\d+)/);
+		if (!match) throw new PmToolError(`URLからチケット番号を抽出できませんでした: ${input}`, "INVALID_URL_FORMAT", { url: input });
+		return match[1];
+	} catch (error$1) {
+		if (error$1 instanceof PmToolError) throw error$1;
+		throw new PmToolError(`不正なURL形式です: ${input}`, "INVALID_URL", {
+			url: input,
+			originalError: error$1.message
+		});
+	}
+}
+/**
+* Markdown形式にフォーマットする
+*
+* @param {Object} data - チケットデータ
+* @returns {string} Markdown形式の文字列
+*/
+function formatMarkdown(data) {
+	const { meta, title, body } = data;
+	const yamlFrontmatter = YAML.stringify(meta);
+	const titleLine = title || "Untitled";
+	const titleUnderline = "=".repeat(Math.max(titleLine.length, 25));
+	return `---
+${yamlFrontmatter.trim()}
+---
+${titleLine}
+${titleUnderline}
+
+${body}
+`;
+}
+/**
+* fetchコマンドを実行する
+*
+* @param {string} ticketIdOrUrl - チケットIDまたはURL
+* @param {Object} options - オプション
+*/
+async function executeFetch(ticketIdOrUrl, options = {}) {
+	if (!ticketIdOrUrl) throw new PmToolError("チケット番号またはURLを指定してください", "INVALID_ARGUMENT");
+	const { tool, config } = getPmToolConfig();
+	const ticketId = parseTicketIdFromUrl(ticketIdOrUrl, config.url);
+	info(`チケット ${ticketId} の情報を取得します...`);
+	const result = await (await loadPlugin(tool)).fetch(config, ticketId, options);
+	info("チケット情報の取得に成功しました");
+	if (options.stdout) {
+		if (options.json) console.log(JSON.stringify(result, null, 2));
+		else {
+			const markdown = formatMarkdown(result);
+			console.log(markdown);
+		}
+		return result;
+	}
+	const outputDir = options.dir || config.output_dir || ".";
+	const prefix = options.prefix || config.fetch?.prefix || "ticket-";
+	if (options.json) {
+		const filepath$1 = resolve(outputDir, `${prefix}${ticketId}.json`);
+		writeFileSync(filepath$1, JSON.stringify(result, null, 2), "utf8");
+		info(`JSONファイルを保存しました: ${filepath$1}`);
+		return result;
+	}
+	const filepath = resolve(outputDir, `${prefix}${ticketId}.md`);
+	writeFileSync(filepath, formatMarkdown(result), "utf8");
+	info(`Markdownファイルを保存しました: ${filepath}`);
+	return result;
+}
+/**
+* updateコマンドを実行する
+*
+* @param {string} ticketIdOrUrl - チケットIDまたはURL
+* @param {Object} options - オプション
+*/
+async function executeUpdate(ticketIdOrUrl, options = {}) {
+	if (!ticketIdOrUrl) throw new PmToolError("チケット番号またはURLを指定してください", "INVALID_ARGUMENT");
+	const { tool, config } = getPmToolConfig();
+	const ticketId = parseTicketIdFromUrl(ticketIdOrUrl, config.url);
+	info(`チケット ${ticketId} を更新します...`);
+	const result = await (await loadPlugin(tool)).update(config, ticketId, options);
+	info("チケットの更新に成功しました");
+	console.log(JSON.stringify(result, null, 2));
+	return result;
+}
+/**
+* コマンドライン引数をパースする
+*
+* @param {string[]} args - コマンドライン引数
+* @returns {Object} パースされた引数
+*/
+function parseArgs(args) {
+	const parsed = {
+		command: null,
+		ticketId: null,
+		options: {}
+	};
+	let i = 0;
+	while (i < args.length) {
+		const arg = args[i];
+		if (arg === "--help" || arg === "-h" || arg === "help") {
+			parsed.command = "help";
+			break;
+		}
+		if (arg === "--version" || arg === "-v") {
+			parsed.command = "version";
+			break;
+		}
+		if (!parsed.command && !arg.startsWith("-")) {
+			parsed.command = arg;
+			i++;
+			continue;
+		}
+		if (parsed.command && !parsed.ticketId && !arg.startsWith("-")) {
+			parsed.ticketId = arg;
+			i++;
+			continue;
+		}
+		if (arg.startsWith("--")) {
+			const key = arg.substring(2);
+			const nextArg = args[i + 1];
+			if (nextArg && !nextArg.startsWith("-")) {
+				parsed.options[key] = nextArg;
+				i += 2;
+			} else {
+				parsed.options[key] = true;
+				i++;
+			}
+		} else i++;
+	}
+	return parsed;
+}
+/**
+* メイン処理
+*/
+async function main() {
+	try {
+		let args = process.argv.slice(2);
+		if (args.length > 0 && (args[0].endsWith("/pm-tool") || args[0].includes("pm-tool"))) args = args.slice(1);
+		const { command, ticketId, options } = parseArgs(args);
+		if (!command) {
+			showUsage();
+			process.exit(1);
+		}
+		switch (command) {
+			case "help":
+				showUsage();
+				break;
+			case "version":
+				showVersion();
+				break;
+			case "fetch":
+				await executeFetch(ticketId, options);
+				break;
+			case "update":
+				await executeUpdate(ticketId, options);
+				break;
+			default:
+				console.error(`エラー: 不明なコマンド "${command}"`);
+				showUsage();
+				process.exit(1);
+		}
+	} catch (error$1) {
+		error("コマンド実行エラー", error$1);
+		if (error$1 instanceof PmToolError) {
+			console.error(`\nエラー: ${error$1.message}`);
+			if (error$1.details) console.error("詳細:", JSON.stringify(error$1.details, null, 2));
+		} else console.error(`\n予期しないエラーが発生しました: ${error$1.message}`);
+		process.exit(1);
+	}
+}
+main();
+
+//#endregion
