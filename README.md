@@ -26,6 +26,9 @@ curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | 
 # 既存環境を最新版に更新(テンプレート・ドキュメントのみ上書き)
 curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash -s -- --force
 
+# developブランチからインストール
+curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash -s -- --branch=develop
+
 # 手動インストール
 git clone https://github.com/wate/MD-Ticket.git
 cp -r MD-Ticket/.ticket /path/to/your/project/
@@ -35,12 +38,14 @@ rm -rf MD-Ticket
 #### オプション
 
 - `--dir=DIR` または `-d DIR`: インストール先ディレクトリ指定 (デフォルト: `.ticket`)
+- `--branch=BRANCH` または `-b BRANCH`: ダウンロード元ブランチ指定 (デフォルト: `master`)
 - `--force` または `-f`: 既存環境を上書き更新(既存チケットは保持)
 - `--help` または `-h`: ヘルプ表示
 
 #### 環境変数
 
 - `TICKET_DIR`: インストール先ディレクトリ (`--dir`オプションで上書き可能)
+- `TICKET_BRANCH`: ダウンロード元ブランチ (`--branch`オプションで上書き可能)
 
 ### AGENTS.md統合 (重要)
 
