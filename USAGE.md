@@ -66,9 +66,18 @@ MD-Ticketのみで完結する運用方法です。小規模プロジェクト�
 
 ### 環境設定
 
+#### 前提条件
+
+`pm-tool`コマンドの実行には[zx](https://google.github.io/zx/setup)が必要です。
+
+```bash
+# zxのインストール
+npm install -g zx
+```
+
 #### 1. 環境変数の設定
 
-プロジェクトルートに`.envrc`を作成し、認証情報を設定します。
+認証情報を環境変数で設定します。
 
 ```bash
 # Redmineの場合
@@ -79,6 +88,22 @@ export REDMINE_API_KEY=your_api_key_here
 # export REDMINE_USERNAME=your_username
 # export REDMINE_PASSWORD=your_password
 ```
+
+**設定を永続化する場合**:
+
+シェルの設定ファイル(`~/.bashrc`または`~/.zshrc`)に追記します。
+
+```bash
+# bashの場合
+echo 'export REDMINE_URL=https://redmine.example.com' >> ~/.bashrc
+echo 'export REDMINE_API_KEY=your_api_key_here' >> ~/.bashrc
+
+# zshの場合
+echo 'export REDMINE_URL=https://redmine.example.com' >> ~/.zshrc
+echo 'export REDMINE_API_KEY=your_api_key_here' >> ~/.zshrc
+```
+
+**注**: プロジェクトごとに環境変数を設定したい場合は、[direnv](https://direnv.net/)などのツールを利用してください。
 
 #### 2. config.ymlの設定
 
