@@ -8,7 +8,8 @@ MD-Ticket 運用ガイド
 
 ### パターン1: スタンドアロン運用
 
-MD-Ticketのみで完結する運用方法です。小規模プロジェクトや個人開発に適しています。
+MD-Ticketのみで完結する運用方法です。  
+小規模プロジェクトや個人開発に適しています。
 
 #### 特徴
 
@@ -183,7 +184,7 @@ updated_on: 2025-11-01T15:30:00Z
 
 **注**:
 
-h1見出し(`ユーザー認証機能の実装`)はプロジェクト管理ツールの`subject`フィールドから生成されます。
+h1見出し(`ユーザー認証機能の実装`)はプロジェクト管理ツールの`subject`フィールドから生成されます。  
 `subject`はYAMLフロントマターには含まれません。
 
 #### チケット情報の更新
@@ -201,7 +202,7 @@ pm-tool update ticket-1234.md --comment "テストコメント" --dry-run
 
 **更新される内容**:
 
-YAMLフロントマターから以下のフィールドを抽出して更新します:
+YAMLフロントマターから以下のフィールドを抽出して更新します。
 
 - `status`: ステータス(新規、進行中、完了等)
 - `assigned_to`: 担当者
@@ -211,7 +212,7 @@ YAMLフロントマターから以下のフィールドを抽出して更新し�
 - `priority`: 優先度
 - `notes`: コメント(`--comment`オプションで指定)
 
-本文(YAMLフロントマター以降)は`description`として更新されます。
+本文(h1見出し以降)は`description`として更新されます。
 
 ### ハイブリッド運用の実践手順
 
@@ -485,14 +486,6 @@ echo 'export REDMINE_API_KEY=your_api_key_here' >> ~/.bashrc
 
 # 環境変数を更新
 export REDMINE_API_KEY=new_api_key_here
-```
-
-### config.ymlが見つからない
-
-```bash
-# config.ymlが存在しない場合はデフォルト設定が使用される
-# 必要に応じて作成
-cp .ticket/_template/config.yml.example .ticket/config.yml
 ```
 
 ベストプラクティス
