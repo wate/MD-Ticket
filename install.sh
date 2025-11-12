@@ -12,9 +12,11 @@ set -e
 
 # デフォルト設定
 REPO_URL="https://github.com/wate/MD-Ticket"
-RAW_URL="https://raw.githubusercontent.com/wate/MD-Ticket/master"
+DEFAULT_BRANCH="master"
+RAW_URL="https://raw.githubusercontent.com/wate/MD-Ticket/${DEFAULT_BRANCH}"
 DEFAULT_DIR=".ticket"
 TICKET_DIR=""
+BRANCH=""
 FORCE_INSTALL=false
 
 # 色定義
@@ -53,12 +55,14 @@ Usage:
   curl -fsSL ${RAW_URL}/install.sh | bash -s -- [OPTIONS]
 
 Options:
-  -d, --dir=DIR    インストール先ディレクトリ (デフォルト: .ticket)
-  -f, --force      既存ディレクトリを上書き更新（テンプレート・ドキュメントのみ）
-  -h, --help       このヘルプを表示
+  -d, --dir=DIR       インストール先ディレクトリ (デフォルト: .ticket)
+  -b, --branch=BRANCH ダウンロード元ブランチ (デフォルト: master)
+  -f, --force         既存ディレクトリを上書き更新（テンプレート・ドキュメントのみ）
+  -h, --help          このヘルプを表示
 
 Environment Variables:
-  TICKET_DIR       インストール先ディレクトリ (--dirオプションで上書き可能)
+  TICKET_DIR          インストール先ディレクトリ (--dirオプションで上書き可能)
+  TICKET_BRANCH       ダウンロード元ブランチ (--branchオプションで上書き可能)
 
 Examples:
   # デフォルトディレクトリにインストール
@@ -70,7 +74,10 @@ Examples:
   # オプションでディレクトリ指定
   curl -fsSL ${RAW_URL}/install.sh | bash -s -- --dir=.custom
 
-  # 既存環境を上書き更新（テンプレート等を最新に）
+  # developブランチからインストール
+  curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash -s -- --branch=develop
+
+  # 既存環境を上書き更新(テンプレート等を最新に)
   curl -fsSL ${RAW_URL}/install.sh | bash -s -- --force
 
 EOF
@@ -79,6 +86,7 @@ EOF
 
 # 引数解析
 CUSTOM_DIR=""
+CUSTOM_BRANCH=""
 while [[ $# -gt 0 ]]; do
     case $1 in
         -d|--dir)
@@ -87,6 +95,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dir=*)
             CUSTOM_DIR="${1#*=}"
+            shift
+            ;;
+        -b|--branch)
+            CUSTOM_BRANCH="$2"
+            shift 2
+            ;;
+        --branch=*)
+            CUSTOM_BRANCH="${1#*=}"
             shift
             ;;
         -f|--force)
@@ -111,6 +127,17 @@ else
     TICKET_DIR="$DEFAULT_DIR"
 fi
 
+if [[ -n "$CUSTOM_BRANCH" ]]; then
+    BRANCH="$CUSTOM_BRANCH"
+elif [[ -n "$TICKET_BRANCH" ]]; then
+    BRANCH="$TICKET_BRANCH"
+else
+    BRANCH="$DEFAULT_BRANCH"
+fi
+
+# ブランチ指定に応じてRAW_URLを更新
+RAW_URL="https://raw.githubusercontent.com/wate/MD-Ticket/${BRANCH}"
+
 # curlまたはwgetの検出
 if command -v curl &> /dev/null; then
     DOWNLOAD_CMD="curl -fsSL"
@@ -130,6 +157,7 @@ if [ -d "$TICKET_DIR" ]; then
 fi
 
 # インストール開始
+info "Branch: ${BRANCH}"
 if [ "$FORCE_INSTALL" = true ]; then
     info "Updating MD-Ticket in '$TICKET_DIR'..."
 else
@@ -139,7 +167,7 @@ fi
 # ディレクトリ構造作成
 if [ "$FORCE_INSTALL" = false ]; then
     info "Creating directory structure..."
-    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_files,_archive/_files,bug,idea,request,task}
+    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_files,_archive/_files,_tools/lib/pm-tool/plugins,bug,idea,request,task}
 
     # .gitkeep作成
     touch "$TICKET_DIR/_archive/.gitkeep"
@@ -153,7 +181,7 @@ if [ "$FORCE_INSTALL" = false ]; then
     touch "$TICKET_DIR/task/.gitkeep"
 else
     info "Ensuring directory structure..."
-    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_files,_archive/_files,bug,idea,request,task}
+    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_files,_archive/_files,_tools/lib/pm-tool/plugins,bug,idea,request,task}
 fi
 
 # ファイルダウンロード
@@ -170,6 +198,7 @@ download_file() {
 download_file "README.md" "$TICKET_DIR/README.md"
 download_file "AGENTS.md" "$TICKET_DIR/AGENTS.md"
 download_file "LICENSE" "$TICKET_DIR/LICENSE"
+download_file ".gitignore" "$TICKET_DIR/.gitignore"
 
 # テンプレートファイル
 download_file "_template/bug.md" "$TICKET_DIR/_template/bug.md"
@@ -181,6 +210,12 @@ download_file "_template/adr.md" "$TICKET_DIR/_template/adr.md"
 # 設定ファイル(オプション)
 info "Downloading optional config file..."
 $DOWNLOAD_CMD "$RAW_URL/config.yml" > "$TICKET_DIR/config.yml" 2>/dev/null || warn "config.yml not found (optional)"
+
+# pm-toolファイル
+info "Downloading pm-tool files..."
+download_file "_tools/pm-tool" "$TICKET_DIR/_tools/pm-tool"
+chmod +x "$TICKET_DIR/_tools/pm-tool"
+download_file "_tools/lib/pm-tool/plugins/redmine.mjs" "$TICKET_DIR/_tools/lib/pm-tool/plugins/redmine.mjs"
 
 if [ "$FORCE_INSTALL" = true ]; then
     success "MD-Ticket has been updated in '$TICKET_DIR'!"

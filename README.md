@@ -8,6 +8,8 @@ MD-Ticket
 チケットを分類し、テンプレートを使い、必要に応じて更新・削除・ADR化することで、
 小規模プロジェクトでも継続的に整然とした記録が保てます。
 
+**詳細な運用方法や実践例は[USAGE.md](USAGE.md)を参照してください。**
+
 導入方法
 -------------------------
 
@@ -26,6 +28,9 @@ curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | 
 # 既存環境を最新版に更新(テンプレート・ドキュメントのみ上書き)
 curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash -s -- --force
 
+# developブランチからインストール
+curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash -s -- --branch=develop
+
 # 手動インストール
 git clone https://github.com/wate/MD-Ticket.git
 cp -r MD-Ticket/.ticket /path/to/your/project/
@@ -35,12 +40,14 @@ rm -rf MD-Ticket
 #### オプション
 
 - `--dir=DIR` または `-d DIR`: インストール先ディレクトリ指定 (デフォルト: `.ticket`)
+- `--branch=BRANCH` または `-b BRANCH`: ダウンロード元ブランチ指定 (デフォルト: `master`)
 - `--force` または `-f`: 既存環境を上書き更新(既存チケットは保持)
 - `--help` または `-h`: ヘルプ表示
 
 #### 環境変数
 
 - `TICKET_DIR`: インストール先ディレクトリ (`--dir`オプションで上書き可能)
+- `TICKET_BRANCH`: ダウンロード元ブランチ (`--branch`オプションで上書き可能)
 
 ### AGENTS.md統合 (重要)
 
@@ -95,7 +102,7 @@ rm -rf MD-Ticket
 3. チケットのクローズ
    - 完了したチケットは基本的に削除する
    - 対応内容や参考資料を残したい場合はアーカイブに保存
-   - アーカイブは後述の「アーカイブ手順」を参照
+   - アーカイブの詳細は[USAGE.md](USAGE.md)の「アーカイブ運用」を参照
 4. 関連管理
    - 関連チケットは本文下部にMarkdownリンクで記載  
      例: `関連チケット: [task/add-feature.md](../task/add-feature.md)`
@@ -134,53 +141,6 @@ rm -rf MD-Ticket
 設定ファイルがない場合はデフォルトの4種別(bug/task/idea/request)が使用されます。
 
 詳細な設定方法やカスタム種別の追加例は[AGENTS.md](AGENTS.md)を参照してください。
-
-アーカイブ手順
--------------------------
-
-完了したチケットのうち、残しておきたいものを年月別にアーカイブできます。
-
-### アーカイブのタイミング
-
-- 基本方針: チケット完了後は削除が基本
-- アーカイブ対象: 完了後も対応内容や参考資料を残しておきたい場合のみ
-- 保管期間目安: 2ヶ月程度まで(長期保存は想定していない)
-- オプション的な位置づけ: 必要なものだけをアーカイブし、ゴミファイルの蓄積を避ける
-
-### アーカイブ手順
-
-1. アーカイブ対象チケットを特定
-2. チケット種別をプレフィックスとして付与し、チケットファイルを `_archive/YYYY-MM/` に移動
-    - 例: `idea/new-feature.md` → `_archive/2024-11/idea-new-feature.md`
-3. 関連する参考資料を `_files/` から `_archive/_files/` に移動
-4. 必要に応じて年月ディレクトリを作成
-
-### アーカイブ構造
-
-```
-.ticket/
-├ _archive/
-│   ├ 2024-11/          (年月別ディレクトリ)
-│   │   ├ idea-new-feature.md
-│   │   └ bug-auth-fix.md
-│   └ _files/           (アーカイブ済みチケットの参考資料)
-│       ├ new-feature-screenshot.png
-│       └ auth-fix-log.txt
-├ _files/               (アクティブなチケットの参考資料)
-├ bug/
-├ task/
-├ idea/
-└ request/
-```
-
-### リンクパスの不変性
-
-チケット内の参考資料への相対パス `../_files/xxx` はアーカイブ後も変わりません。
-
-- アーカイブ前: `idea/new-feature.md` → `../_files/new-feature-draft.md`
-- アーカイブ後: `_archive/2024-11/idea-new-feature.md` → `../_files/new-feature-draft.md`
-
-どちらも同じ相対パスで参照可能なため、リンクの書き換えは不要です。
 
 AGENTS.md統合ガイド
 -------------------------

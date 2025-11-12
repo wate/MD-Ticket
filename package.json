@@ -1,0 +1,13 @@
+{
+  "name": "md-ticket-tools",
+  "version": "0.1.0",
+  "description": "MD-Ticket tools for project management integration",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "rolldown -c rolldown.config.mjs && chmod +x _tools/pm-tool"
+  },
+  "devDependencies": {
+    "rolldown": "^1.0.0-beta.47"
+  }
+}
