@@ -15,3 +15,24 @@ types:
     label: アイデア
     template: idea.md
     description: 発想・構想段階のメモ
+
+## ------------
+## 外部連携の設定
+## ------------
+# integration:
+#   ## プロジェクト管理ツール
+#   pm_tool:
+#     type: redmine
+#     redmine:
+#       url: ${REDMINE_URL}
+#       ## 認証方式1: APIキー（推奨）
+#       api_key: ${REDMINE_API_KEY}
+#       ## 認証方式2: Basic認証(APIキーが発行できない場合)
+#       # username: ${REDMINE_USERNAME}
+#       # password: ${REDMINE_PASSWORD}
+#       ## 共通設定
+#       # output_dir: .  # デフォルト: カレントディレクトリ
+#       ## fetch時の設定
+#       # fetch:
+#         ## ファイル名のプレリックス(デフォルト: ticket-)
+#         # prefix: ticket-
