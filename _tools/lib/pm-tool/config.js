@@ -57,7 +57,9 @@ function expandEnvVarsRecursive(obj) {
  * @throws {Error} 設定ファイルが見つからない、またはパースできない場合
  */
 export function loadConfig() {
-    const configPath = resolve(__dirname, '../../../config.yml');
+    // 実行ファイル(pm-tool)のディレクトリから見た.ticket/config.ymlへのパス
+    // pm-toolは.ticket/_tools/にあるため、../config.ymlで.ticket/config.ymlを指す
+    const configPath = resolve(__dirname, '../config.yml');
 
     try {
         const configContent = readFileSync(configPath, 'utf8');

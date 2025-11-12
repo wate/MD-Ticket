@@ -343,9 +343,17 @@ async function fetchTicket(config, ticketId, options = {}) {
 	const headers = {};
 	if (hasApiKey) headers["X-Redmine-API-Key"] = config.api_key;
 	else headers["Authorization"] = createBasicAuthHeader(config.username, config.password);
-	const response = await get(url, headers);
-	info(`チケット #${ticketId} の情報を取得しました`);
-	return formatAsYamlFrontmatter(response.issue);
+	try {
+		const response = await get(url, headers);
+		info(`チケット #${ticketId} の情報を取得しました`);
+		return formatAsYamlFrontmatter(response.issue);
+	} catch (error$1) {
+		if (error$1 instanceof ApiError && error$1.statusCode === 404) throw new ApiError(`チケット #${ticketId} が見つかりません (404 Not Found)`, 404, {
+			ticketId,
+			url
+		});
+		throw error$1;
+	}
 }
 /**
 * Redmineチケット情報をYAMLフロントマター形式に変換する
@@ -433,32 +441,73 @@ async function updateTicket(config, ticketId, updateData = {}) {
 	const issueData = buildIssueUpdateData(updateData);
 	if (Object.keys(issueData).length === 0) throw new ValidationError("更新する内容が指定されていません");
 	const url = `${config.url}/issues/${ticketId}.json`;
+	console.log("\n=== Redmine API更新ペイロード ===");
+	console.log("URL:", url);
+	console.log("Payload:", JSON.stringify({ issue: issueData }, null, 2));
+	console.log("================================\n");
+	if (updateData.dryRun || updateData["dry-run"]) {
+		info("[DRY RUN] 実際の更新は行いません");
+		return {
+			success: true,
+			message: `[DRY RUN] チケット #${ticketId} の更新をシミュレートしました`,
+			updated: issueData,
+			dryRun: true
+		};
+	}
 	const headers = {};
 	if (hasApiKey) headers["X-Redmine-API-Key"] = config.api_key;
 	else headers["Authorization"] = createBasicAuthHeader(config.username, config.password);
-	await put(url, { issue: issueData }, headers);
-	info(`チケット #${ticketId} を更新しました`);
-	return {
-		success: true,
-		message: `チケット #${ticketId} を更新しました`,
-		updated: issueData
-	};
+	try {
+		await put(url, { issue: issueData }, headers);
+		info(`チケット #${ticketId} を更新しました`);
+		return {
+			success: true,
+			message: `チケット #${ticketId} を更新しました`,
+			updated: issueData
+		};
+	} catch (error$1) {
+		if (error$1 instanceof ApiError && error$1.statusCode === 404) throw new ApiError(`チケット #${ticketId} が見つかりません (404 Not Found)`, 404, {
+			ticketId,
+			url
+		});
+		throw error$1;
+	}
 }
 /**
 * 更新データをRedmine API形式に変換する
+* YAMLフロントマターとコマンドラインオプションから更新データを抽出
 *
-* @param {Object} updateData - 更新データ
+* @param {Object} updateData - 更新データ（frontmatter, body, コマンドラインオプション）
 * @returns {Object} Redmine API形式の更新データ
 */
 function buildIssueUpdateData(updateData) {
 	const issueData = {};
+	const frontmatter = updateData.frontmatter || {};
+	const body = updateData.body || "";
 	if (updateData.comment) issueData.notes = updateData.comment;
+	if (updateData.description) issueData.description = updateData.description;
+	else if (body) {
+		let description = body;
+		const setextMatch = body.match(/^[^\n]+\n=+\n+(.+)$/s);
+		if (setextMatch) description = setextMatch[1].trim();
+		else {
+			const atxMatch = body.match(/^#\s+[^\n]+\n+(.+)$/s);
+			if (atxMatch) description = atxMatch[1].trim();
+		}
+		if (description && description !== body) issueData.description = description;
+	}
 	if (updateData.status) issueData.status_id = parseInt(updateData.status, 10);
+	else if (frontmatter.status?.id) issueData.status_id = frontmatter.status.id;
 	if (updateData.assigned_to) issueData.assigned_to_id = parseInt(updateData.assigned_to, 10);
+	else if (frontmatter.assigned_to?.id) issueData.assigned_to_id = frontmatter.assigned_to.id;
 	if (updateData.done_ratio !== void 0) issueData.done_ratio = parseInt(updateData.done_ratio, 10);
+	else if (frontmatter.done_ratio !== void 0) issueData.done_ratio = frontmatter.done_ratio;
 	if (updateData.estimated_hours !== void 0) issueData.estimated_hours = parseFloat(updateData.estimated_hours);
+	else if (frontmatter.estimated_hours !== null && frontmatter.estimated_hours !== void 0) issueData.estimated_hours = frontmatter.estimated_hours;
 	if (updateData.start_date) issueData.start_date = updateData.start_date;
+	else if (frontmatter.start_date) issueData.start_date = frontmatter.start_date;
 	if (updateData.due_date) issueData.due_date = updateData.due_date;
+	else if (frontmatter.due_date) issueData.due_date = frontmatter.due_date;
 	if (updateData.priority) issueData.priority_id = parseInt(updateData.priority, 10);
 	if (updateData.category) issueData.category_id = parseInt(updateData.category, 10);
 	return issueData;

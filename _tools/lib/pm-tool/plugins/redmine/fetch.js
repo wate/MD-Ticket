@@ -2,7 +2,7 @@
 
 import { get, createBasicAuthHeader } from '../../common/api.js';
 import { info, debug } from '../../common/logger.js';
-import { ValidationError } from '../../common/error.js';
+import { ValidationError, ApiError } from '../../common/error.js';
 
 /**
  * Redmineチケット情報を取得する
@@ -44,12 +44,25 @@ export async function fetchTicket(config, ticketId, options = {}) {
     }
 
     // API呼び出し
-    const response = await get(url, headers);
+    try {
+        const response = await get(url, headers);
 
-    info(`チケット #${ticketId} の情報を取得しました`);
+        info(`チケット #${ticketId} の情報を取得しました`);
 
-    // YAMLフロントマター形式に変換
-    return formatAsYamlFrontmatter(response.issue);
+        // YAMLフロントマター形式に変換
+        return formatAsYamlFrontmatter(response.issue);
+    } catch (error) {
+        // 404エラーの場合、より分かりやすいメッセージに変換
+        if (error instanceof ApiError && error.statusCode === 404) {
+            throw new ApiError(
+                `チケット #${ticketId} が見つかりません (404 Not Found)`,
+                404,
+                { ticketId, url }
+            );
+        }
+        // その他のエラーはそのまま再スロー
+        throw error;
+    }
 }
 
 /**

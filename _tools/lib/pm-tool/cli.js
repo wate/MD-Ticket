@@ -3,7 +3,7 @@
 import { getPmToolConfig } from './config.js';
 import { info, error as logError, debug } from './common/logger.js';
 import { PmToolError } from './common/error.js';
-import { writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
 /**
@@ -12,21 +12,25 @@ import { resolve } from 'path';
 function showUsage() {
     console.log(`
 使用方法:
-  pm-tool fetch <チケット番号>     チケット情報を取得する
-  pm-tool update <チケット番号>    チケット情報を更新する
-  pm-tool help                      ヘルプを表示する
+  pm-tool fetch <チケット番号>        チケット情報を取得する
+  pm-tool update <ファイルパス>       チケット情報を更新する
+  pm-tool help                         ヘルプを表示する
 
 オプション:
-  --help, -h                        ヘルプを表示する
-  --version, -v                     バージョンを表示する
+  --help, -h                           ヘルプを表示する
+  --version, -v                        バージョンを表示する
+  --dry-run                            実際の更新を行わず、ペイロードのみ表示する
 
 環境変数:
-  PM_TOOL_LOG_LEVEL                 ログレベル (DEBUG, INFO, WARN, ERROR)
-                                    デフォルト: ERROR
+  PM_TOOL_LOG_LEVEL                    ログレベル (DEBUG, INFO, WARN, ERROR)
+                                       デフォルト: INFO
 
 例:
   pm-tool fetch 1234
-  pm-tool update 1234 --comment "実装完了" --status 3
+  pm-tool fetch https://redmine.example.com/issues/1234
+  pm-tool update ticket-1234.md
+  pm-tool update ticket-1234.md --dry-run
+  pm-tool update ticket-1234.md --comment "実装完了"
     `.trim());
 }
 
@@ -198,24 +202,51 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
 /**
  * updateコマンドを実行する
  *
- * @param {string} ticketIdOrUrl - チケットIDまたはURL
+ * @param {string} filePath - チケットファイルパス
  * @param {Object} options - オプション
  */
-async function executeUpdate(ticketIdOrUrl, options = {}) {
-    if (!ticketIdOrUrl) {
-        throw new PmToolError('チケット番号またはURLを指定してください', 'INVALID_ARGUMENT');
+async function executeUpdate(filePath, options = {}) {
+    if (!filePath) {
+        throw new PmToolError('チケットファイルパスを指定してください', 'INVALID_ARGUMENT');
+    }
+
+    // ファイルの存在確認
+    if (!existsSync(filePath)) {
+        throw new PmToolError(`ファイルが見つかりません: ${filePath}`, 'FILE_NOT_FOUND');
     }
 
     const { tool, config } = getPmToolConfig();
 
-    // URLからチケット番号を抽出（URL形式でない場合はそのまま使用）
-    const ticketId = parseTicketIdFromUrl(ticketIdOrUrl, config.url);
+    // ファイルを読み込んでYAMLフロントマターをパース
+    const fileContent = readFileSync(filePath, 'utf8');
+    const frontmatterMatch = fileContent.match(/^---\n([\s\S]+?)\n---\n([\s\S]*)$/);
+
+    if (!frontmatterMatch) {
+        throw new PmToolError('YAMLフロントマターが見つかりません', 'INVALID_FORMAT');
+    }
+
+    const frontmatter = YAML.parse(frontmatterMatch[1]);
+    const bodyContent = frontmatterMatch[2].trim();
+
+    // チケットIDを取得
+    const ticketId = frontmatter.id;
+    if (!ticketId) {
+        throw new PmToolError('YAMLフロントマターにidが含まれていません', 'INVALID_FORMAT');
+    }
 
     info(`チケット ${ticketId} を更新します...`);
     const plugin = await loadPlugin(tool);
 
-    // プラグインのupdateメソッドを呼び出し
-    const result = await plugin.update(config, ticketId, options);
+    // 更新データを構築（コマンドラインオプション、YAMLフロントマター、本文を渡す）
+    const updateData = {
+        ...options, // コマンドラインオプションで指定された値
+        frontmatter, // YAMLフロントマター全体
+        body: bodyContent, // Markdown本文
+        ticketId // チケットID
+    };
+
+    // プラグインのupdateメソッドを呼び出し（フィールド抽出はプラグイン側で実施）
+    const result = await plugin.update(config, ticketId, updateData);
 
     info('チケットの更新に成功しました');
     console.log(JSON.stringify(result, null, 2));

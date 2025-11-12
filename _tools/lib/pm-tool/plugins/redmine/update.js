@@ -2,7 +2,7 @@
 
 import { put, createBasicAuthHeader } from '../../common/api.js';
 import { info, debug } from '../../common/logger.js';
-import { ValidationError } from '../../common/error.js';
+import { ValidationError, ApiError } from '../../common/error.js';
 
 /**
  * Redmineチケット情報を更新する
@@ -41,6 +41,23 @@ export async function updateTicket(config, ticketId, updateData = {}) {
     // Redmine APIエンドポイント
     const url = `${config.url}/issues/${ticketId}.json`;
 
+    // 更新ペイロードを表示
+    console.log('\n=== Redmine API更新ペイロード ===');
+    console.log('URL:', url);
+    console.log('Payload:', JSON.stringify({ issue: issueData }, null, 2));
+    console.log('================================\n');
+
+    // dry-runモードの場合はAPI呼び出しをスキップ
+    if (updateData.dryRun || updateData['dry-run']) {
+        info('[DRY RUN] 実際の更新は行いません');
+        return {
+            success: true,
+            message: `[DRY RUN] チケット #${ticketId} の更新をシミュレートしました`,
+            updated: issueData,
+            dryRun: true
+        };
+    }
+
     // 認証ヘッダーの準備
     const headers = {};
     if (hasApiKey) {
@@ -51,67 +68,120 @@ export async function updateTicket(config, ticketId, updateData = {}) {
     }
 
     // API呼び出し
-    const response = await put(url, { issue: issueData }, headers);
+    try {
+        const response = await put(url, { issue: issueData }, headers);
 
-    info(`チケット #${ticketId} を更新しました`);
+        info(`チケット #${ticketId} を更新しました`);
 
-    return {
-        success: true,
-        message: `チケット #${ticketId} を更新しました`,
-        updated: issueData
-    };
+        return {
+            success: true,
+            message: `チケット #${ticketId} を更新しました`,
+            updated: issueData
+        };
+    } catch (error) {
+        // 404エラーの場合、より分かりやすいメッセージに変換
+        if (error instanceof ApiError && error.statusCode === 404) {
+            throw new ApiError(
+                `チケット #${ticketId} が見つかりません (404 Not Found)`,
+                404,
+                { ticketId, url }
+            );
+        }
+        // その他のエラーはそのまま再スロー
+        throw error;
+    }
 }
 
 /**
  * 更新データをRedmine API形式に変換する
+ * YAMLフロントマターとコマンドラインオプションから更新データを抽出
  *
- * @param {Object} updateData - 更新データ
+ * @param {Object} updateData - 更新データ（frontmatter, body, コマンドラインオプション）
  * @returns {Object} Redmine API形式の更新データ
  */
 function buildIssueUpdateData(updateData) {
     const issueData = {};
+    const frontmatter = updateData.frontmatter || {};
+    const body = updateData.body || '';
 
-    // コメント（notes）
+    // コメント（notes）- コマンドラインオプションのみ
     if (updateData.comment) {
         issueData.notes = updateData.comment;
     }
 
-    // ステータスID
+    // 説明（description）- コマンドラインオプション優先、なければYAMLから抽出
+    if (updateData.description) {
+        issueData.description = updateData.description;
+    } else if (body) {
+        // h1見出しを除いた本文を説明として使用
+        // setext記法（タイトル\n===）またはatx記法（# タイトル）に対応
+        let description = body;
+
+        // setext記法のh1を除去
+        const setextMatch = body.match(/^[^\n]+\n=+\n+(.+)$/s);
+        if (setextMatch) {
+            description = setextMatch[1].trim();
+        } else {
+            // atx記法のh1を除去
+            const atxMatch = body.match(/^#\s+[^\n]+\n+(.+)$/s);
+            if (atxMatch) {
+                description = atxMatch[1].trim();
+            }
+        }
+
+        if (description && description !== body) {
+            issueData.description = description;
+        }
+    }
+
+    // ステータスID - コマンドラインオプション優先、なければYAMLから
     if (updateData.status) {
         issueData.status_id = parseInt(updateData.status, 10);
+    } else if (frontmatter.status?.id) {
+        issueData.status_id = frontmatter.status.id;
     }
 
-    // 担当者ID
+    // 担当者ID - コマンドラインオプション優先、なければYAMLから
     if (updateData.assigned_to) {
         issueData.assigned_to_id = parseInt(updateData.assigned_to, 10);
+    } else if (frontmatter.assigned_to?.id) {
+        issueData.assigned_to_id = frontmatter.assigned_to.id;
     }
 
-    // 進捗率
+    // 進捗率 - コマンドラインオプション優先、なければYAMLから
     if (updateData.done_ratio !== undefined) {
         issueData.done_ratio = parseInt(updateData.done_ratio, 10);
+    } else if (frontmatter.done_ratio !== undefined) {
+        issueData.done_ratio = frontmatter.done_ratio;
     }
 
-    // 予定工数
+    // 予定工数 - コマンドラインオプション優先、なければYAMLから
     if (updateData.estimated_hours !== undefined) {
         issueData.estimated_hours = parseFloat(updateData.estimated_hours);
+    } else if (frontmatter.estimated_hours !== null && frontmatter.estimated_hours !== undefined) {
+        issueData.estimated_hours = frontmatter.estimated_hours;
     }
 
-    // 開始日
+    // 開始日 - コマンドラインオプション優先、なければYAMLから
     if (updateData.start_date) {
         issueData.start_date = updateData.start_date;
+    } else if (frontmatter.start_date) {
+        issueData.start_date = frontmatter.start_date;
     }
 
-    // 期日
+    // 期日 - コマンドラインオプション優先、なければYAMLから
     if (updateData.due_date) {
         issueData.due_date = updateData.due_date;
+    } else if (frontmatter.due_date) {
+        issueData.due_date = frontmatter.due_date;
     }
 
-    // 優先度ID
+    // 優先度ID - コマンドラインオプションのみ（YAMLフロントマターには通常含まれない）
     if (updateData.priority) {
         issueData.priority_id = parseInt(updateData.priority, 10);
     }
 
-    // カテゴリID
+    // カテゴリID - コマンドラインオプションのみ（YAMLフロントマターには通常含まれない）
     if (updateData.category) {
         issueData.category_id = parseInt(updateData.category, 10);
     }
