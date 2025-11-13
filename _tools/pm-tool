@@ -107,6 +107,15 @@ function formatMessage(level, message, data) {
 	return formatted;
 }
 /**
+* DEBUGレベルのログを出力する
+*
+* @param {string} message - ログメッセージ
+* @param {Object} [data] - 追加データ
+*/
+function debug(message, data) {
+	if (currentLogLevel <= LOG_LEVELS.DEBUG) console.debug(formatMessage("DEBUG", message, data));
+}
+/**
 * INFOレベルのログを出力する
 *
 * @param {string} message - ログメッセージ
@@ -164,6 +173,12 @@ function showUsage(plugin = null) {
   --version, -v                        バージョンを表示する
   --dry-run                            実際の更新を行わず、ペイロードのみ表示する
 
+fetchコマンド用オプション:
+  --stdout                             ファイル保存せず標準出力に表示する
+  --json                               JSON形式で保存/出力する
+  --dir <ディレクトリ>                 出力ディレクトリを指定する
+  --prefix <プレフィックス>            ファイル名のプレフィックスを指定する
+
 環境変数:
   PM_TOOL_LOG_LEVEL                    ログレベル (DEBUG, INFO, WARN, ERROR)
                                        デフォルト: INFO`;
@@ -181,6 +196,8 @@ function showUsage(plugin = null) {
 
 例:
   pm-tool fetch 1234
+  pm-tool fetch 1234 --stdout
+  pm-tool fetch 1234 --json --dir ./output
   pm-tool update ticket-1234.md
   pm-tool update ticket-1234.md --dry-run`;
 	if (plugin) {
@@ -313,10 +330,10 @@ async function executeUpdate(filePath, options = {}) {
 	if (!filePath) throw new PmToolError("チケットファイルパスを指定してください", "INVALID_ARGUMENT");
 	if (!fs.existsSync(filePath)) throw new PmToolError(`ファイルが見つかりません: ${filePath}`, "FILE_NOT_FOUND");
 	const { tool, config } = getPmToolConfig();
-	const frontmatterMatch = fs.readFileSync(filePath, "utf8").match(/^---\n([\s\S]+?)\n---\n([\s\S]*)$/);
+	const frontmatterMatch = fs.readFileSync(filePath, "utf8").match(/^---\r?\n([\s\S]+?)\r?\n---\r?\n([\s\S]*)$/);
 	if (!frontmatterMatch) throw new PmToolError("YAMLフロントマターが見つかりません", "INVALID_FORMAT");
 	const frontmatter = YAML.parse(frontmatterMatch[1]);
-	const bodyContent = frontmatterMatch[2].trim();
+	const bodyContent = frontmatterMatch[2].replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
 	const plugin = await loadPlugin(tool);
 	const ticketId = plugin.extractTicketId(frontmatter);
 	if (!ticketId) throw new PmToolError(`YAMLフロントマターからチケットIDを抽出できませんでした (${tool}プラグイン)`, "INVALID_FORMAT");
@@ -334,50 +351,53 @@ async function executeUpdate(filePath, options = {}) {
 }
 /**
 * コマンドライン引数をパースする
+* zx組み込みのminimist(argv)を使用
 *
 * @param {string[]} args - コマンドライン引数
+* @param {Object} plugin - プラグインオブジェクト（オプション、オプション定義の取得に使用）
 * @returns {Object} パースされた引数
 */
-function parseArgs(args) {
-	const parsed = {
-		command: null,
+function parseArgs(args, plugin = null) {
+	const stringOptions = ["dir", "prefix"];
+	const booleanOptions = [
+		"help",
+		"version",
+		"dry-run",
+		"stdout",
+		"json"
+	];
+	if (plugin && typeof plugin.getUpdateOptions === "function") {
+		const updateOptions = plugin.getUpdateOptions();
+		for (const opt of updateOptions) if (opt.type === "string") stringOptions.push(opt.name);
+		else if (opt.type === "number") stringOptions.push(opt.name);
+	}
+	const parsed = minimist(args, {
+		string: stringOptions,
+		boolean: booleanOptions,
+		alias: {
+			h: "help",
+			v: "version"
+		}
+	});
+	const positional = parsed._;
+	if (parsed.help) return {
+		command: "help",
 		ticketId: null,
 		options: {}
 	};
-	let i = 0;
-	while (i < args.length) {
-		const arg = args[i];
-		if (arg === "--help" || arg === "-h" || arg === "help") {
-			parsed.command = "help";
-			break;
-		}
-		if (arg === "--version" || arg === "-v") {
-			parsed.command = "version";
-			break;
-		}
-		if (!parsed.command && !arg.startsWith("-")) {
-			parsed.command = arg;
-			i++;
-			continue;
-		}
-		if (parsed.command && !parsed.ticketId && !arg.startsWith("-")) {
-			parsed.ticketId = arg;
-			i++;
-			continue;
-		}
-		if (arg.startsWith("--")) {
-			const key = arg.substring(2);
-			const nextArg = args[i + 1];
-			if (nextArg && !nextArg.startsWith("-")) {
-				parsed.options[key] = nextArg;
-				i += 2;
-			} else {
-				parsed.options[key] = true;
-				i++;
-			}
-		} else i++;
-	}
-	return parsed;
+	if (parsed.version) return {
+		command: "version",
+		ticketId: null,
+		options: {}
+	};
+	const command = positional[0] || null;
+	const ticketId = positional[1] || null;
+	const { _, help, version, h, v,...options } = parsed;
+	return {
+		command,
+		ticketId,
+		options
+	};
 }
 /**
 * メイン処理
@@ -386,10 +406,19 @@ async function main() {
 	try {
 		let args = process.argv.slice(2);
 		if (args.length > 0 && (args[0].endsWith("/pm-tool") || args[0].includes("pm-tool"))) args = args.slice(1);
-		const { command, ticketId, options } = parseArgs(args);
+		const basicParsed = parseArgs(args);
+		const { command, ticketId } = basicParsed;
+		let { options } = basicParsed;
 		if (!command) {
 			showUsage();
 			process.exit(1);
+		}
+		if (command === "update") try {
+			const { tool } = getPmToolConfig();
+			const plugin = await loadPlugin(tool);
+			options = parseArgs(args, plugin).options;
+		} catch (error$1) {
+			debug("プラグインロードに失敗したため、基本パース結果を使用します", error$1);
 		}
 		switch (command) {
 			case "help":

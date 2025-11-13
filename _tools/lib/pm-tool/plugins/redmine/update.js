@@ -109,29 +109,10 @@ function buildIssueUpdateData(updateData) {
         issueData.notes = updateData.comment;
     }
 
-    // 説明（description）- コマンドラインオプション優先、なければYAMLから抽出
-    if (updateData.description) {
-        issueData.description = updateData.description;
-    } else if (body) {
-        // h1見出しを除いた本文を説明として使用
-        // setext記法（タイトル\n===）またはatx記法（# タイトル）に対応
-        let description = body;
-
-        // setext記法のh1を除去
-        const setextMatch = body.match(/^[^\n]+\n=+\n+(.+)$/s);
-        if (setextMatch) {
-            description = setextMatch[1].trim();
-        } else {
-            // atx記法のh1を除去
-            const atxMatch = body.match(/^#\s+[^\n]+\n+(.+)$/s);
-            if (atxMatch) {
-                description = atxMatch[1].trim();
-            }
-        }
-
-        if (description && description !== body) {
-            issueData.description = description;
-        }
+    // 説明（description）- Markdown本文から自動抽出（h1見出しを除く）
+    if (body) {
+        // ※bodyは既にcli.jsでCRLF→LF正規化済み
+        issueData.description = extractDescriptionFromMarkdown(body);
     }
 
     // ステータスID - コマンドラインオプション優先、なければYAMLから
@@ -187,4 +168,34 @@ function buildIssueUpdateData(updateData) {
     }
 
     return issueData;
+}
+
+/**
+ * Markdown本文からdescription（説明）を抽出する
+ * h1見出しを除去し、残りの本文を返す
+ *
+ * 注: この関数は既にLFに正規化された本文を受け取ることを前提とする
+ *
+ * @param {string} body - Markdown本文（LF改行）
+ * @returns {string} 説明（h1見出しを除いた本文）
+ */
+function extractDescriptionFromMarkdown(body) {
+    if (!body) {
+        return '';
+    }
+
+    // setext記法のh1（タイトル\n===）を除去
+    const setextMatch = body.match(/^[^\n]+\n=+\n+(.+)$/s);
+    if (setextMatch) {
+        return setextMatch[1].trim();
+    }
+
+    // atx記法のh1（# タイトル）を除去
+    const atxMatch = body.match(/^#\s+[^\n]+\n+(.+)$/s);
+    if (atxMatch) {
+        return atxMatch[1].trim();
+    }
+
+    // h1が見つからない場合は本文全体を返す
+    return body.trim();
 }

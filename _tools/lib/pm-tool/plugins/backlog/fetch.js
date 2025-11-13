@@ -147,7 +147,8 @@ function formatAsYamlFrontmatter(issue) {
         meta.actual_hours = issue.actualHours;
     }
 
-    const body = issue.description || '';
+    // 本文のCRLFをLFに正規化（プラットフォーム非依存にする）
+    const body = issue.description ? issue.description.replace(/\r\n/g, '\n').replace(/\r/g, '\n') : '';
     const title = issue.summary || 'Untitled';
 
     return {

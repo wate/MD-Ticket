@@ -24,6 +24,12 @@ function showUsage(plugin = null) {
   --version, -v                        バージョンを表示する
   --dry-run                            実際の更新を行わず、ペイロードのみ表示する
 
+fetchコマンド用オプション:
+  --stdout                             ファイル保存せず標準出力に表示する
+  --json                               JSON形式で保存/出力する
+  --dir <ディレクトリ>                 出力ディレクトリを指定する
+  --prefix <プレフィックス>            ファイル名のプレフィックスを指定する
+
 環境変数:
   PM_TOOL_LOG_LEVEL                    ログレベル (DEBUG, INFO, WARN, ERROR)
                                        デフォルト: INFO`;
@@ -44,6 +50,8 @@ function showUsage(plugin = null) {
 
 例:
   pm-tool fetch 1234
+  pm-tool fetch 1234 --stdout
+  pm-tool fetch 1234 --json --dir ./output
   pm-tool update ticket-1234.md
   pm-tool update ticket-1234.md --dry-run`;
 
@@ -248,14 +256,19 @@ async function executeUpdate(filePath, options = {}) {
 
     // ファイルを読み込んでYAMLフロントマターをパース
     const fileContent = fs.readFileSync(filePath, 'utf8');
-    const frontmatterMatch = fileContent.match(/^---\n([\s\S]+?)\n---\n([\s\S]*)$/);
+    // CRLF(\r\n)とLF(\n)の両方に対応
+    const frontmatterMatch = fileContent.match(/^---\r?\n([\s\S]+?)\r?\n---\r?\n([\s\S]*)$/);
 
     if (!frontmatterMatch) {
         throw new PmToolError('YAMLフロントマターが見つかりません', 'INVALID_FORMAT');
     }
 
     const frontmatter = YAML.parse(frontmatterMatch[1]);
-    const bodyContent = frontmatterMatch[2].trim();
+    // CRLFをLFに正規化（プラットフォーム間の互換性確保）
+    const bodyContent = frontmatterMatch[2]
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .trim();
 
     // プラグインをロード
     const plugin = await loadPlugin(tool);
@@ -290,65 +303,63 @@ async function executeUpdate(filePath, options = {}) {
 
 /**
  * コマンドライン引数をパースする
+ * zx組み込みのminimist(argv)を使用
  *
  * @param {string[]} args - コマンドライン引数
+ * @param {Object} plugin - プラグインオブジェクト（オプション、オプション定義の取得に使用）
  * @returns {Object} パースされた引数
  */
-function parseArgs(args) {
-    const parsed = {
-        command: null,
-        ticketId: null,
-        options: {}
-    };
+function parseArgs(args, plugin = null) {
+    // プラグインから文字列型・数値型のオプションを動的に取得
+    const stringOptions = ['dir', 'prefix']; // 共通オプション
+    const booleanOptions = ['help', 'version', 'dry-run', 'stdout', 'json']; // 共通オプション
 
-    let i = 0;
-    while (i < args.length) {
-        const arg = args[i];
-
-        // ヘルプオプション
-        if (arg === '--help' || arg === '-h' || arg === 'help') {
-            parsed.command = 'help';
-            break;
-        }
-
-        // バージョンオプション
-        if (arg === '--version' || arg === '-v') {
-            parsed.command = 'version';
-            break;
-        }
-
-        // コマンド
-        if (!parsed.command && !arg.startsWith('-')) {
-            parsed.command = arg;
-            i++;
-            continue;
-        }
-
-        // チケットID
-        if (parsed.command && !parsed.ticketId && !arg.startsWith('-')) {
-            parsed.ticketId = arg;
-            i++;
-            continue;
-        }
-
-        // オプション
-        if (arg.startsWith('--')) {
-            const key = arg.substring(2);
-            const nextArg = args[i + 1];
-
-            if (nextArg && !nextArg.startsWith('-')) {
-                parsed.options[key] = nextArg;
-                i += 2;
-            } else {
-                parsed.options[key] = true;
-                i++;
+    if (plugin && typeof plugin.getUpdateOptions === 'function') {
+        const updateOptions = plugin.getUpdateOptions();
+        for (const opt of updateOptions) {
+            if (opt.type === 'string') {
+                stringOptions.push(opt.name);
             }
-        } else {
-            i++;
+            // number型もminimistではstringとして扱い、プラグイン側で変換する
+            else if (opt.type === 'number') {
+                stringOptions.push(opt.name);
+            }
         }
     }
 
-    return parsed;
+    // minimistでパース（zxのargvを利用）
+    const parsed = minimist(args, {
+        string: stringOptions,
+        boolean: booleanOptions,
+        alias: {
+            h: 'help',
+            v: 'version'
+        }
+    });
+
+    // 残りの引数（コマンドとチケットID/ファイルパス）
+    const positional = parsed._;
+
+    // ヘルプまたはバージョンが指定された場合
+    if (parsed.help) {
+        return { command: 'help', ticketId: null, options: {} };
+    }
+    if (parsed.version) {
+        return { command: 'version', ticketId: null, options: {} };
+    }
+
+    // コマンドとチケットID/ファイルパスを抽出
+    const command = positional[0] || null;
+    const ticketId = positional[1] || null;
+
+    // オプションを抽出（_, help, version以外）
+    const { _, help, version, h, v, ...options } = parsed;
+
+    return {
+        command,
+        ticketId,
+        options
+    };
 }
 
 /**
@@ -366,12 +377,29 @@ async function main() {
             args = args.slice(1);
         }
 
-        const { command, ticketId, options } = parseArgs(args);
+        // 第1段階: 基本パース（コマンド判定のみ、プラグイン情報なし）
+        const basicParsed = parseArgs(args);
+        const { command, ticketId } = basicParsed;
+        let { options } = basicParsed;
 
         // コマンドが指定されていない場合
         if (!command) {
             showUsage();
             process.exit(1);
+        }
+
+        // 第2段階: updateコマンドの場合はプラグインをロードして再パース
+        if (command === 'update') {
+            try {
+                const { tool } = getPmToolConfig();
+                const plugin = await loadPlugin(tool);
+                // プラグイン情報を使って再パース
+                const reparsed = parseArgs(args, plugin);
+                options = reparsed.options;
+            } catch (error) {
+                // プラグインロード失敗時は基本パース結果を使用
+                debug('プラグインロードに失敗したため、基本パース結果を使用します', error);
+            }
         }
 
         // コマンド実行

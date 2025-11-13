@@ -250,7 +250,7 @@ function formatAsYamlFrontmatter(issue) {
 	if (issue.dueDate) meta.due_date = issue.dueDate;
 	if (issue.estimatedHours !== null && issue.estimatedHours !== void 0) meta.estimated_hours = issue.estimatedHours;
 	if (issue.actualHours !== null && issue.actualHours !== void 0) meta.actual_hours = issue.actualHours;
-	const body = issue.description || "";
+	const body = issue.description ? issue.description.replace(/\r\n/g, "\n").replace(/\r/g, "\n") : "";
 	return {
 		meta,
 		title: issue.summary || "Untitled",

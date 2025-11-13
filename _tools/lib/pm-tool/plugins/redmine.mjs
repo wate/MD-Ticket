@@ -402,7 +402,7 @@ function formatAsYamlFrontmatter(issue) {
 	removeUndefinedFields(meta);
 	return {
 		meta,
-		body: issue.description || "",
+		body: issue.description ? issue.description.replace(/\r\n/g, "\n").replace(/\r/g, "\n") : "",
 		title: issue.subject || ""
 	};
 }
@@ -485,17 +485,7 @@ function buildIssueUpdateData(updateData) {
 	const frontmatter = updateData.frontmatter || {};
 	const body = updateData.body || "";
 	if (updateData.comment) issueData.notes = updateData.comment;
-	if (updateData.description) issueData.description = updateData.description;
-	else if (body) {
-		let description = body;
-		const setextMatch = body.match(/^[^\n]+\n=+\n+(.+)$/s);
-		if (setextMatch) description = setextMatch[1].trim();
-		else {
-			const atxMatch = body.match(/^#\s+[^\n]+\n+(.+)$/s);
-			if (atxMatch) description = atxMatch[1].trim();
-		}
-		if (description && description !== body) issueData.description = description;
-	}
+	if (body) issueData.description = extractDescriptionFromMarkdown(body);
 	if (updateData.status) issueData.status_id = parseInt(updateData.status, 10);
 	else if (frontmatter.status?.id) issueData.status_id = frontmatter.status.id;
 	if (updateData.assigned_to) issueData.assigned_to_id = parseInt(updateData.assigned_to, 10);
@@ -511,6 +501,23 @@ function buildIssueUpdateData(updateData) {
 	if (updateData.priority) issueData.priority_id = parseInt(updateData.priority, 10);
 	if (updateData.category) issueData.category_id = parseInt(updateData.category, 10);
 	return issueData;
+}
+/**
+* Markdown本文からdescription（説明）を抽出する
+* h1見出しを除去し、残りの本文を返す
+*
+* 注: この関数は既にLFに正規化された本文を受け取ることを前提とする
+*
+* @param {string} body - Markdown本文（LF改行）
+* @returns {string} 説明（h1見出しを除いた本文）
+*/
+function extractDescriptionFromMarkdown(body) {
+	if (!body) return "";
+	const setextMatch = body.match(/^[^\n]+\n=+\n+(.+)$/s);
+	if (setextMatch) return setextMatch[1].trim();
+	const atxMatch = body.match(/^#\s+[^\n]+\n+(.+)$/s);
+	if (atxMatch) return atxMatch[1].trim();
+	return body.trim();
 }
 
 //#endregion
