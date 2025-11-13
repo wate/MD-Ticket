@@ -150,7 +150,7 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
         throw new PmToolError('チケット番号またはURLを指定してください', 'INVALID_ARGUMENT');
     }
 
-    const { tool, config } = getPmToolConfig();
+    const { tool, config, pmToolConfig } = getPmToolConfig();
 
     // URLからチケット番号を抽出（URL形式でない場合はそのまま使用）
     const ticketId = parseTicketIdFromUrl(ticketIdOrUrl, config.url);
@@ -177,8 +177,8 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
         return result;
     }
 
-    const outputDir = options.dir || config.output_dir || '.';
-    const prefix = options.prefix || config.fetch?.prefix || 'ticket-';
+    const outputDir = options.dir || pmToolConfig.output_dir || '.';
+    const prefix = options.prefix || pmToolConfig.file_prefix || plugin.defaults?.file_prefix || '';
 
     // JSON形式で保存
     if (options.json) {

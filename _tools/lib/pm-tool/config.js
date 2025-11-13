@@ -103,6 +103,7 @@ export function getPmToolConfig() {
 
     return {
         tool: toolName,
-        config: toolConfig
+        config: toolConfig,
+        pmToolConfig: pmToolConfig  // pm_toolレベルの設定も含める
     };
 }
