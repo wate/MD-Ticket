@@ -310,6 +310,7 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
 	if (options.json) {
 		const filename$1 = `${prefix}${ticketId}.json`;
 		const filepath$1 = path.resolve(outputDir, filename$1);
+		fs.mkdirSync(path.dirname(filepath$1), { recursive: true });
 		fs.writeFileSync(filepath$1, JSON.stringify(result, null, 2), "utf8");
 		info(`JSONファイルを保存しました: ${filepath$1}`);
 		return result;
@@ -317,6 +318,7 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
 	const filename = `${prefix}${ticketId}.md`;
 	const filepath = path.resolve(outputDir, filename);
 	const markdown = formatMarkdown(result);
+	fs.mkdirSync(path.dirname(filepath), { recursive: true });
 	fs.writeFileSync(filepath, markdown, "utf8");
 	info(`Markdownファイルを保存しました: ${filepath}`);
 	return result;

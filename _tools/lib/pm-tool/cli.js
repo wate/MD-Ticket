@@ -224,15 +224,17 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
     if (options.json) {
         const filename = `${prefix}${ticketId}.json`;
         const filepath = path.resolve(outputDir, filename);
+        fs.mkdirSync(path.dirname(filepath), { recursive: true });
         fs.writeFileSync(filepath, JSON.stringify(result, null, 2), 'utf8');
         info(`JSONファイルを保存しました: ${filepath}`);
         return result;
     }
 
-    // Markdown形式で保存（デフォルト）
+    // Markdown形式で保存(デフォルト)
     const filename = `${prefix}${ticketId}.md`;
     const filepath = path.resolve(outputDir, filename);
     const markdown = formatMarkdown(result);
+    fs.mkdirSync(path.dirname(filepath), { recursive: true });
     fs.writeFileSync(filepath, markdown, 'utf8');
     info(`Markdownファイルを保存しました: ${filepath}`);
 
