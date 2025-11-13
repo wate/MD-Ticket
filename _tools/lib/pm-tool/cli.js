@@ -44,10 +44,21 @@ function showUsage(plugin = null) {
 
 例:
   pm-tool fetch 1234
-  pm-tool fetch https://redmine.example.com/issues/1234
   pm-tool update ticket-1234.md
-  pm-tool update ticket-1234.md --dry-run
+  pm-tool update ticket-1234.md --dry-run`;
+
+    // プラグイン固有の例を追加
+    if (plugin) {
+        if (plugin.name === 'redmine') {
+            usageText += `
+  pm-tool fetch https://redmine.example.com/issues/1234
   pm-tool update ticket-1234.md --comment "実装完了"`;
+        } else if (plugin.name === 'backlog') {
+            usageText += `
+  pm-tool fetch PROJ-123
+  pm-tool update task/PROJ-123.md --start-date 2025-11-01`;
+        }
+    }
 
     console.log(usageText.trim());
 }

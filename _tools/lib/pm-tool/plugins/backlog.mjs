@@ -410,11 +410,6 @@ var backlog_default = {
 	getUpdateOptions() {
 		return [
 			{
-				name: "summary",
-				description: "件名",
-				type: "string"
-			},
-			{
 				name: "start-date",
 				description: "開始日(YYYY-MM-DD)",
 				type: "string"

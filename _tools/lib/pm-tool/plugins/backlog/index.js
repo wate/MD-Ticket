@@ -57,7 +57,6 @@ export default {
      */
     getUpdateOptions() {
         return [
-            { name: 'summary', description: '件名', type: 'string' },
             { name: 'start-date', description: '開始日(YYYY-MM-DD)', type: 'string' },
             { name: 'due-date', description: '期限日(YYYY-MM-DD)', type: 'string' },
             { name: 'estimated-hours', description: '予定時間', type: 'number' },
