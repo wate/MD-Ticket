@@ -23,6 +23,10 @@ types:
 #   ## プロジェクト管理ツール
 #   pm_tool:
 #     type: redmine
+#     ## 出力先ディレクトリ
+#     # output_dir: .
+#     ## チケットファイルのプレフィックス
+#     # file_prefix: null
 #     ## Redmine連携設定
 #     redmine:
 #       url: ${REDMINE_URL}
@@ -32,6 +36,6 @@ types:
 #       # username: ${REDMINE_USERNAME}
 #       # password: ${REDMINE_PASSWORD}
 #     ## Backlog連携設定
-#     backlog:
-#       url: ${BACKLOG_URL}
-#       api_key: ${BACKLOG_API_KEY}
+#     # backlog:
+#     #   url: ${BACKLOG_URL}
+#     #   api_key: ${BACKLOG_API_KEY}
