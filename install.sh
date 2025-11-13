@@ -216,6 +216,7 @@ info "Downloading pm-tool files..."
 download_file "_tools/pm-tool" "$TICKET_DIR/_tools/pm-tool"
 chmod +x "$TICKET_DIR/_tools/pm-tool"
 download_file "_tools/lib/pm-tool/plugins/redmine.mjs" "$TICKET_DIR/_tools/lib/pm-tool/plugins/redmine.mjs"
+download_file "_tools/lib/pm-tool/plugins/backlog.mjs" "$TICKET_DIR/_tools/lib/pm-tool/plugins/backlog.mjs"
 
 if [ "$FORCE_INSTALL" = true ]; then
     success "MD-Ticket has been updated in '$TICKET_DIR'!"

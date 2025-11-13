@@ -41,4 +41,18 @@ export default defineConfig([
       extensions: ['.js'],
     },
   },
+  // Backlogプラグイン（独立バンドル）
+  {
+    input: '_tools/lib/pm-tool/plugins/backlog/index.js',
+    output: {
+      file: '_tools/lib/pm-tool/plugins/backlog.mjs',
+      format: 'esm',
+    },
+    external: [
+      'zx',
+    ],
+    resolve: {
+      extensions: ['.js'],
+    },
+  },
 ]);

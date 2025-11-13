@@ -3,14 +3,17 @@
 import { getPmToolConfig } from './config.js';
 import { info, error as logError, debug } from './common/logger.js';
 import { PmToolError } from './common/error.js';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { resolve } from 'path';
+
+// zx内包のモジュール(fs, path)はimport不要
+// グローバルに利用可能: fs, path, os, YAML, chalk, argv, glob, which, etc.
 
 /**
  * 使用方法を表示する
+ *
+ * @param {Object} plugin - プラグインオブジェクト（オプション）
  */
-function showUsage() {
-    console.log(`
+function showUsage(plugin = null) {
+    let usageText = `
 使用方法:
   pm-tool fetch <チケット番号>        チケット情報を取得する
   pm-tool update <ファイルパス>       チケット情報を更新する
@@ -21,17 +24,51 @@ function showUsage() {
   --version, -v                        バージョンを表示する
   --dry-run                            実際の更新を行わず、ペイロードのみ表示する
 
+fetchコマンド用オプション:
+  --stdout                             ファイル保存せず標準出力に表示する
+  --json                               JSON形式で保存/出力する
+  --dir <ディレクトリ>                 出力ディレクトリを指定する
+  --prefix <プレフィックス>            ファイル名のプレフィックスを指定する
+
 環境変数:
   PM_TOOL_LOG_LEVEL                    ログレベル (DEBUG, INFO, WARN, ERROR)
-                                       デフォルト: INFO
+                                       デフォルト: INFO`;
+
+    // プラグイン固有のオプションを追加
+    if (plugin && typeof plugin.getUpdateOptions === 'function') {
+        const options = plugin.getUpdateOptions();
+        if (options && options.length > 0) {
+            usageText += `\n\n${plugin.label}固有の更新オプション:`;
+            for (const opt of options) {
+                const padding = ' '.repeat(Math.max(0, 30 - opt.name.length));
+                usageText += `\n  --${opt.name}${padding}${opt.description}`;
+            }
+        }
+    }
+
+    usageText += `
 
 例:
   pm-tool fetch 1234
-  pm-tool fetch https://redmine.example.com/issues/1234
+  pm-tool fetch 1234 --stdout
+  pm-tool fetch 1234 --json --dir ./output
   pm-tool update ticket-1234.md
-  pm-tool update ticket-1234.md --dry-run
-  pm-tool update ticket-1234.md --comment "実装完了"
-    `.trim());
+  pm-tool update ticket-1234.md --dry-run`;
+
+    // プラグイン固有の例を追加
+    if (plugin) {
+        if (plugin.name === 'redmine') {
+            usageText += `
+  pm-tool fetch https://redmine.example.com/issues/1234
+  pm-tool update ticket-1234.md --comment "実装完了"`;
+        } else if (plugin.name === 'backlog') {
+            usageText += `
+  pm-tool fetch PROJ-123
+  pm-tool update task/PROJ-123.md --start-date 2025-11-01`;
+        }
+    }
+
+    console.log(usageText.trim());
 }
 
 /**
@@ -63,20 +100,25 @@ async function loadPlugin(toolName) {
 
 /**
  * URLからチケット番号を抽出する
+ * プラグインのparseUrlメソッドを使用してURL解析を行う
  *
  * @param {string} input - チケット番号またはURL
  * @param {string} configUrl - config.ymlで設定されたURL
+ * @param {Object} plugin - プラグインオブジェクト
  * @returns {string} チケット番号
  * @throws {PmToolError} URL不一致またはチケット番号抽出失敗
  */
-function parseTicketIdFromUrl(input, configUrl) {
+function parseTicketIdFromUrl(input, configUrl, plugin) {
+    // 文字列に変換（数値が渡された場合に備えて）
+    const inputStr = String(input);
+
     // URL形式でない場合はそのまま返す
-    if (!input.startsWith('http://') && !input.startsWith('https://')) {
-        return input;
+    if (!inputStr.startsWith('http://') && !inputStr.startsWith('https://')) {
+        return inputStr;
     }
 
     try {
-        const inputUrl = new URL(input);
+        const inputUrl = new URL(inputStr);
         const baseUrl = new URL(configUrl);
 
         // プロトコル、ホスト、ポートが一致するか確認
@@ -84,31 +126,33 @@ function parseTicketIdFromUrl(input, configUrl) {
             inputUrl.hostname !== baseUrl.hostname ||
             inputUrl.port !== baseUrl.port) {
             throw new PmToolError(
-                `URLが設定と一致しません\n設定: ${configUrl}\n入力: ${input}`,
+                `URLが設定と一致しません\n設定: ${configUrl}\n入力: ${inputStr}`,
                 'URL_MISMATCH',
-                { configUrl, inputUrl: input }
+                { configUrl, inputUrl: inputStr }
             );
         }
 
-        // パスからチケット番号を抽出（Redmine形式: /issues/123 または /issues/123.json）
-        const match = inputUrl.pathname.match(/\/issues\/(\d+)/);
-        if (!match) {
-            throw new PmToolError(
-                `URLからチケット番号を抽出できませんでした: ${input}`,
-                'INVALID_URL_FORMAT',
-                { url: input }
-            );
+        // プラグインのparseUrlメソッドを使用してチケット番号を抽出
+        if (plugin && typeof plugin.parseUrl === 'function') {
+            const ticketId = plugin.parseUrl(inputStr);
+            if (ticketId) {
+                return ticketId;
+            }
         }
 
-        return match[1];
+        throw new PmToolError(
+            `URLからチケット番号を抽出できませんでした: ${inputStr}`,
+            'INVALID_URL_FORMAT',
+            { url: inputStr }
+        );
     } catch (error) {
         if (error instanceof PmToolError) {
             throw error;
         }
         throw new PmToolError(
-            `不正なURL形式です: ${input}`,
+            `不正なURL形式です: ${inputStr}`,
             'INVALID_URL',
-            { url: input, originalError: error.message }
+            { url: inputStr, originalError: error.message }
         );
     }
 }
@@ -150,52 +194,55 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
         throw new PmToolError('チケット番号またはURLを指定してください', 'INVALID_ARGUMENT');
     }
 
-    const { tool, config } = getPmToolConfig();
+    const { tool, config, pmToolConfig } = getPmToolConfig();
+
+    // プラグインを先にロード（URL解析に必要）
+    const plugin = await loadPlugin(tool);
 
     // URLからチケット番号を抽出（URL形式でない場合はそのまま使用）
-    const ticketId = parseTicketIdFromUrl(ticketIdOrUrl, config.url);
+    const ticketId = parseTicketIdFromUrl(ticketIdOrUrl, config.url, plugin);
 
     info(`チケット ${ticketId} の情報を取得します...`);
-
-    const plugin = await loadPlugin(tool);
 
     // プラグインのfetchメソッドを呼び出し
     const result = await plugin.fetch(config, ticketId, options);
 
     info('チケット情報の取得に成功しました');
 
-    // 標準出力モード（ファイル保存なし）
-    if (options.stdout) {
-        if (options.json) {
-            // JSON形式で標準出力
-            console.log(JSON.stringify(result, null, 2));
-        } else {
-            // Markdown形式で標準出力
-            const markdown = formatMarkdown(result);
-            console.log(markdown);
-        }
-        return result;
-    }
-
-    const outputDir = options.dir || config.output_dir || '.';
-    const prefix = options.prefix || config.fetch?.prefix || 'ticket-';
-
-    // JSON形式で保存
+    // JSON形式の場合
     if (options.json) {
-        const filename = `${prefix}${ticketId}.json`;
-        const filepath = resolve(outputDir, filename);
-        writeFileSync(filepath, JSON.stringify(result, null, 2), 'utf8');
-        info(`JSONファイルを保存しました: ${filepath}`);
+        // ディレクトリ指定がある場合のみファイル保存
+        if (options.dir) {
+            const outputDir = options.dir;
+            const prefix = options.prefix || pmToolConfig.file_prefix || plugin.defaults?.file_prefix || '';
+            const filename = `${prefix}${ticketId}.json`;
+            const filepath = path.resolve(outputDir, filename);
+            fs.mkdirSync(path.dirname(filepath), { recursive: true });
+            fs.writeFileSync(filepath, JSON.stringify(result, null, 2), 'utf8');
+            info(`JSONファイルを保存しました: ${filepath}`);
+            return result;
+        }
+        // ディレクトリ指定なしの場合は標準出力
+        console.log(JSON.stringify(result, null, 2));
         return result;
     }
 
-    // Markdown形式で保存（デフォルト）
-    const filename = `${prefix}${ticketId}.md`;
-    const filepath = resolve(outputDir, filename);
-    const markdown = formatMarkdown(result);
-    writeFileSync(filepath, markdown, 'utf8');
-    info(`Markdownファイルを保存しました: ${filepath}`);
+    // 標準出力モード（Markdown形式）
+    if (options.stdout) {
+        const markdown = formatMarkdown(result);
+        console.log(markdown);
+        return result;
+    }
 
+    // Markdown形式でファイル保存（デフォルト）
+    const outputDir = options.dir || pmToolConfig.output_dir || '.';
+    const prefix = options.prefix || pmToolConfig.file_prefix || plugin.defaults?.file_prefix || '';
+    const filename = `${prefix}${ticketId}.md`;
+    const filepath = path.resolve(outputDir, filename);
+    const markdown = formatMarkdown(result);
+    fs.mkdirSync(path.dirname(filepath), { recursive: true });
+    fs.writeFileSync(filepath, markdown, 'utf8');
+    info(`Markdownファイルを保存しました: ${filepath}`);
     return result;
 }
 
@@ -211,31 +258,41 @@ async function executeUpdate(filePath, options = {}) {
     }
 
     // ファイルの存在確認
-    if (!existsSync(filePath)) {
+    if (!fs.existsSync(filePath)) {
         throw new PmToolError(`ファイルが見つかりません: ${filePath}`, 'FILE_NOT_FOUND');
     }
 
     const { tool, config } = getPmToolConfig();
 
     // ファイルを読み込んでYAMLフロントマターをパース
-    const fileContent = readFileSync(filePath, 'utf8');
-    const frontmatterMatch = fileContent.match(/^---\n([\s\S]+?)\n---\n([\s\S]*)$/);
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    // CRLF(\r\n)とLF(\n)の両方に対応
+    const frontmatterMatch = fileContent.match(/^---\r?\n([\s\S]+?)\r?\n---\r?\n([\s\S]*)$/);
 
     if (!frontmatterMatch) {
         throw new PmToolError('YAMLフロントマターが見つかりません', 'INVALID_FORMAT');
     }
 
     const frontmatter = YAML.parse(frontmatterMatch[1]);
-    const bodyContent = frontmatterMatch[2].trim();
+    // CRLFをLFに正規化（プラットフォーム間の互換性確保）
+    const bodyContent = frontmatterMatch[2]
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .trim();
 
-    // チケットIDを取得
-    const ticketId = frontmatter.id;
+    // プラグインをロード
+    const plugin = await loadPlugin(tool);
+
+    // チケットIDを取得(プラグインに委譲)
+    const ticketId = plugin.extractTicketId(frontmatter);
     if (!ticketId) {
-        throw new PmToolError('YAMLフロントマターにidが含まれていません', 'INVALID_FORMAT');
+        throw new PmToolError(
+            `YAMLフロントマターからチケットIDを抽出できませんでした (${tool}プラグイン)`,
+            'INVALID_FORMAT'
+        );
     }
 
     info(`チケット ${ticketId} を更新します...`);
-    const plugin = await loadPlugin(tool);
 
     // 更新データを構築（コマンドラインオプション、YAMLフロントマター、本文を渡す）
     const updateData = {
@@ -256,65 +313,63 @@ async function executeUpdate(filePath, options = {}) {
 
 /**
  * コマンドライン引数をパースする
+ * zx組み込みのminimist(argv)を使用
  *
  * @param {string[]} args - コマンドライン引数
+ * @param {Object} plugin - プラグインオブジェクト（オプション、オプション定義の取得に使用）
  * @returns {Object} パースされた引数
  */
-function parseArgs(args) {
-    const parsed = {
-        command: null,
-        ticketId: null,
-        options: {}
-    };
+function parseArgs(args, plugin = null) {
+    // プラグインから文字列型・数値型のオプションを動的に取得
+    const stringOptions = ['dir', 'prefix']; // 共通オプション
+    const booleanOptions = ['help', 'version', 'dry-run', 'stdout', 'json']; // 共通オプション
 
-    let i = 0;
-    while (i < args.length) {
-        const arg = args[i];
-
-        // ヘルプオプション
-        if (arg === '--help' || arg === '-h' || arg === 'help') {
-            parsed.command = 'help';
-            break;
-        }
-
-        // バージョンオプション
-        if (arg === '--version' || arg === '-v') {
-            parsed.command = 'version';
-            break;
-        }
-
-        // コマンド
-        if (!parsed.command && !arg.startsWith('-')) {
-            parsed.command = arg;
-            i++;
-            continue;
-        }
-
-        // チケットID
-        if (parsed.command && !parsed.ticketId && !arg.startsWith('-')) {
-            parsed.ticketId = arg;
-            i++;
-            continue;
-        }
-
-        // オプション
-        if (arg.startsWith('--')) {
-            const key = arg.substring(2);
-            const nextArg = args[i + 1];
-
-            if (nextArg && !nextArg.startsWith('-')) {
-                parsed.options[key] = nextArg;
-                i += 2;
-            } else {
-                parsed.options[key] = true;
-                i++;
+    if (plugin && typeof plugin.getUpdateOptions === 'function') {
+        const updateOptions = plugin.getUpdateOptions();
+        for (const opt of updateOptions) {
+            if (opt.type === 'string') {
+                stringOptions.push(opt.name);
             }
-        } else {
-            i++;
+            // number型もminimistではstringとして扱い、プラグイン側で変換する
+            else if (opt.type === 'number') {
+                stringOptions.push(opt.name);
+            }
         }
     }
 
-    return parsed;
+    // minimistでパース（zxのargvを利用）
+    const parsed = minimist(args, {
+        string: stringOptions,
+        boolean: booleanOptions,
+        alias: {
+            h: 'help',
+            v: 'version'
+        }
+    });
+
+    // 残りの引数（コマンドとチケットID/ファイルパス）
+    const positional = parsed._;
+
+    // ヘルプまたはバージョンが指定された場合
+    if (parsed.help) {
+        return { command: 'help', ticketId: null, options: {} };
+    }
+    if (parsed.version) {
+        return { command: 'version', ticketId: null, options: {} };
+    }
+
+    // コマンドとチケットID/ファイルパスを抽出
+    const command = positional[0] || null;
+    const ticketId = positional[1] || null;
+
+    // オプションを抽出（_, help, version以外）
+    const { _, help, version, h, v, ...options } = parsed;
+
+    return {
+        command,
+        ticketId,
+        options
+    };
 }
 
 /**
@@ -332,7 +387,10 @@ async function main() {
             args = args.slice(1);
         }
 
-        const { command, ticketId, options } = parseArgs(args);
+        // 第1段階: 基本パース（コマンド判定のみ、プラグイン情報なし）
+        const basicParsed = parseArgs(args);
+        const { command, ticketId } = basicParsed;
+        let { options } = basicParsed;
 
         // コマンドが指定されていない場合
         if (!command) {
@@ -340,10 +398,32 @@ async function main() {
             process.exit(1);
         }
 
+        // 第2段階: updateコマンドの場合はプラグインをロードして再パース
+        if (command === 'update') {
+            try {
+                const { tool } = getPmToolConfig();
+                const plugin = await loadPlugin(tool);
+                // プラグイン情報を使って再パース
+                const reparsed = parseArgs(args, plugin);
+                options = reparsed.options;
+            } catch (error) {
+                // プラグインロード失敗時は基本パース結果を使用
+                debug('プラグインロードに失敗したため、基本パース結果を使用します', error);
+            }
+        }
+
         // コマンド実行
         switch (command) {
             case 'help':
-                showUsage();
+                // ヘルプ表示時にプラグイン情報を含める
+                try {
+                    const { tool } = getPmToolConfig();
+                    const plugin = await loadPlugin(tool);
+                    showUsage(plugin);
+                } catch (error) {
+                    // プラグインのロードに失敗した場合は基本ヘルプのみ表示
+                    showUsage();
+                }
                 break;
 
             case 'version':
