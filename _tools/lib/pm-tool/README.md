@@ -1,182 +1,23 @@
-pm-tool
+pm-tool プラグイン開発ガイド
 =========================
 
-MD-Ticketとプロジェクト管理ツールを連携するためのCLIツールです。
+このドキュメントは、pm-toolの新規プラグインを開発する開発者向けのガイドです。
 
-pm-toolは、MD-Ticketとプロジェクト管理ツール(Redmine、Backlog、GitHub Issue等)をつなぐブリッジツールです。
-プラグイン方式により、複数のプロジェクト管理ツールに対応可能な拡張性の高い設計になっています。
+**利用者向けのドキュメントは[USAGE.md](../../USAGE.md)を参照してください。**
 
-機能
+概要
 -------------------------
 
-- **fetch**: プロジェクト管理ツールからチケット情報を取得
-- **update**: プロジェクト管理ツールのチケット情報を更新
-- 自動リトライ(指数バックオフ)
-- エラーハンドリング(認証エラー、ネットワークエラー、レート制限等)
-- 環境変数による設定管理
+pm-toolは、MD-Ticketとプロジェクト管理ツール(Redmine、Backlog、GitHub Issue等)を連携するためのCLIツールです。
+プラグイン方式により、複数のプロジェクト管理ツールに対応可能な拡張性の高い設計になっています。
 
 対応ツール
 -------------------------
 
 - [x] [Redmine](https://www.redmine.org/)
-- [ ] [Backlog](https://backlog.com/)
+- [x] [Backlog](https://backlog.com/)
 - [ ] [GitHub Issue](https://github.co.jp/)
 - [ ] [Jira](https://www.atlassian.com/ja/software/jira)
-
-インストール
--------------------------
-
-### 前提条件
-
-- [zx](https://google.github.io/zx/setup)がグローバルにインストールされていること
-
-```bash
-npm install -g zx
-```
-
-### セットアップ
-
-PATHを設定する。
-
-```bash
-export PATH="$PATH:$(pwd)/.ticket/_tools"
-```
-
-`.bashrc`や`.zshrc`に追加することを推奨します。
-
-環境変数を設定する。
-
-Redmineの場合:
-
-```bash
-export REDMINE_URL=https://redmine.example.com
-# APIキー認証の場合(推奨)
-export REDMINE_API_KEY=your_api_key_here
-# Basic認証の場合(APIキーが発行できない環境)
-export REDMINE_USERNAME=your_username
-export REDMINE_PASSWORD=your_password
-```
-
-環境変数の管理方法は自由です(direnv、.env、シェル設定ファイル等)。
-
-設定ファイルを確認する。
-
-`.ticket/config.yml`を開き、連携設定を確認してください。
-
-```yaml
-integration:
-  pm_tool:
-    type: redmine
-    redmine:
-      url: ${REDMINE_URL}
-      # APIキー認証の場合(推奨)
-      api_key: ${REDMINE_API_KEY}
-      # Basic認証の場合(APIキーが発行できない環境)
-      # username: ${REDMINE_USERNAME}
-      # password: ${REDMINE_PASSWORD}
-```
-
-使用方法
--------------------------
-
-### 基本コマンド
-
-#### チケット情報の取得
-
-```bash
-pm-tool fetch <チケット番号またはURL> [オプション]
-```
-
-例:
-
-```bash
-# チケット番号で取得
-pm-tool fetch 1234
-
-# URLで取得(ブラウザからコピペ)
-pm-tool fetch https://redmine.example.com/issues/1234
-pm-tool fetch https://redmine.example.com/issues/1234#note-5  # アンカー付きも可
-
-# 標準出力に表示(ファイル保存なし)
-pm-tool fetch 1234 --stdout
-
-# JSON形式で保存
-pm-tool fetch 1234 --json
-
-# JSON形式で標準出力
-pm-tool fetch 1234 --json --stdout
-
-# 保存先ディレクトリを指定
-pm-tool fetch 1234 --dir ./docs
-
-# ファイル名のプレフィックスを指定
-pm-tool fetch 1234 --prefix issue-
-```
-
-取得オプション:
-
-- `--stdout`: 標準出力に表示(ファイル保存なし)
-- `--json`: JSON形式で保存/出力
-- `--dir <path>`: 保存先ディレクトリ(デフォルト: カレントディレクトリ)
-- `--prefix <text>`: ファイル名のプレフィックス(デフォルト: `ticket-`)
-
-#### チケット情報の更新
-
-```bash
-pm-tool update <チケット番号またはURL> [オプション]
-```
-
-例:
-
-```bash
-# チケット番号でコメントを追加
-pm-tool update 1234 --comment "実装完了"
-
-# URLでステータスを更新
-pm-tool update https://redmine.example.com/issues/1234 --status 3
-
-# 複数項目を同時に更新
-pm-tool update 1234 --comment "実装完了" --status 3 --done-ratio 100
-```
-
-### ヘルプ表示
-
-```bash
-pm-tool help
-```
-
-### バージョン表示
-
-```bash
-pm-tool --version
-```
-
-### オプション
-
-更新時に使用できるオプション(ツールにより異なります)。
-
-Redmineの場合:
-
-- `--comment`: コメント
-- `--status`: ステータスID
-- `--assigned-to`: 担当者ID
-- `--done-ratio`: 進捗率(0-100)
-- `--estimated-hours`: 予定工数
-- `--start-date`: 開始日(YYYY-MM-DD)
-- `--due-date`: 期日(YYYY-MM-DD)
-- `--priority`: 優先度ID
-- `--category`: カテゴリID
-
-### 環境変数
-
-`PM_TOOL_LOG_LEVEL`: ログレベル(DEBUG, INFO, WARN, ERROR)
-
-- デフォルト: INFO
-- デバッグ時は`DEBUG`に設定
-
-```bash
-PM_TOOL_LOG_LEVEL=DEBUG pm-tool fetch 1234
-```
 
 アーキテクチャ
 -------------------------
@@ -196,10 +37,15 @@ PM_TOOL_LOG_LEVEL=DEBUG pm-tool fetch 1234
       │  ├ logger.js   # ログ出力(レベル別ログ)
       │  └ retry.js    # リトライ処理(指数バックオフ)
       ├ plugins/       # ツール別プラグイン
-      │  └ redmine/    # Redmineプラグイン
+      │  ├ redmine/    # Redmineプラグイン
+      │  │  ├ index.js # プラグインエントリーポイント
+      │  │  ├ fetch.js # チケット取得
+      │  │  ├ update.js# チケット更新
+      │  │  └ README.md# プラグインドキュメント
+      │  └ backlog/    # Backlogプラグイン
       │     ├ index.js # プラグインエントリーポイント
-      │     ├ fetch.js # チケット取得
-      │     ├ update.js# チケット更新
+      │     ├ fetch.js # 課題取得
+      │     ├ update.js# 課題更新
       │     └ README.md# プラグインドキュメント
       └ README.md      # このファイル
 ```
@@ -213,30 +59,351 @@ PM_TOOL_LOG_LEVEL=DEBUG pm-tool fetch 1234
 
 ```javascript
 export default {
-    name: 'tool-name',
-    label: 'Tool Name',
+    name: 'tool-name',        // プラグイン名(config.ymlのtypeと一致)
+    label: 'Tool Name',       // 表示名
     
+    /**
+     * チケット情報を取得
+     * @param {Object} config - ツール固有の設定(config.ymlから取得)
+     * @param {string} ticketId - チケットID
+     * @param {Object} options - 取得オプション(--stdout, --json等)
+     * @returns {Promise<{meta: Object, body: string, title: string}>}
+     */
     async fetch(config, ticketId, options) {
         // チケット取得処理
-        return { meta, body, title };
+        return { 
+            meta: { /* YAMLフロントマター用のメタデータ */ },
+            body: '本文内容',
+            title: 'チケットタイトル'
+        };
+    },
+    
+    /**
+     * チケット情報を更新
+     * @param {Object} config - ツール固有の設定
+     * @param {string} ticketId - チケットID
+     * @param {Object} updateData - 更新データ(CLIオプションから生成)
+     * @returns {Promise<{success: boolean, message: string, updated: Object}>}
+     */
+    async update(config, ticketId, updateData) {
+        // チケット更新処理
+        return { 
+            success: true, 
+            message: '更新成功',
+            updated: { /* 更新された項目 */ }
+        };
+    },
+    
+    /**
+     * 設定を検証
+     * @param {Object} config - ツール固有の設定
+     * @returns {Promise<{valid: boolean, errors: string[]}>}
+     */
+    async validate(config) {
+        // 設定検証(必須項目チェック等)
+        return { valid: true, errors: [] };
+    },
+    
+    /**
+     * フロントマターからチケットIDを抽出
+     * @param {Object} frontmatter - YAMLフロントマター
+     * @returns {string|null} チケットID
+     */
+    extractTicketId(frontmatter) {
+        // プラグイン固有のフィールド名からIDを抽出
+        return frontmatter.id || frontmatter.issue_key || null;
+    }
+};
+```
+
+### 共通ユーティリティ
+
+プラグイン実装では、以下の共通ユーティリティを活用できます。
+
+#### API呼び出し(`common/api.js`)
+
+```javascript
+import { callApi } from '../../common/api.js';
+
+// 基本的な使い方
+const response = await callApi(url, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` }
+});
+
+// 自動リトライ付き
+const response = await callApi(url, options, {
+    maxRetries: 3,
+    baseDelay: 1000,
+    maxDelay: 10000,
+    backoffMultiplier: 2
+});
+```
+
+#### リトライ処理(`common/retry.js`)
+
+```javascript
+import { withRetry } from '../../common/retry.js';
+
+// 任意の処理にリトライを適用
+const result = await withRetry(
+    async () => {
+        // リトライ対象の処理
+        return await someApiCall();
+    },
+    {
+        maxRetries: 3,
+        shouldRetry: (error) => error.statusCode === 429 || error.statusCode >= 500
+    }
+);
+```
+
+#### エラークラス(`common/error.js`)
+
+```javascript
+import {
+    ConfigError,
+    AuthenticationError,
+    ApiError,
+    NetworkError,
+    ValidationError
+} from '../../common/error.js';
+
+// 適切なエラークラスを使用
+if (!config.api_key) {
+    throw new ConfigError('APIキーが設定されていません');
+}
+
+if (response.status === 401) {
+    throw new AuthenticationError('認証に失敗しました');
+}
+
+if (response.status === 404) {
+    throw new ApiError('チケットが見つかりません', 404);
+}
+```
+
+#### ロギング(`common/logger.js`)
+
+```javascript
+import { debug, info, warn, error } from '../../common/logger.js';
+
+// 環境変数PM_TOOL_LOG_LEVELで制御可能
+debug('詳細なデバッグ情報', { ticketId, config });
+info('チケット取得開始', { ticketId });
+warn('非推奨APIを使用しています');
+error('チケット取得に失敗', { error });
+```
+
+プラグイン開発手順
+-------------------------
+
+### 1. ディレクトリ作成
+
+```bash
+mkdir -p .ticket/_tools/lib/pm-tool/plugins/{tool-name}
+cd .ticket/_tools/lib/pm-tool/plugins/{tool-name}
+```
+
+### 2. プラグインファイル作成
+
+以下のファイルを作成します。
+
+- `index.js`: エントリーポイント(共通インターフェース実装)
+- `fetch.js`: チケット取得ロジック
+- `update.js`: チケット更新ロジック
+- `README.md`: プラグイン固有ドキュメント
+
+### 3. index.jsの実装
+
+```javascript
+#!/usr/bin/env zx
+
+import { fetchTicket } from './fetch.js';
+import { updateTicket } from './update.js';
+import { debug } from '../../common/logger.js';
+import { ConfigError } from '../../common/error.js';
+
+export default {
+    name: 'your-tool',
+    label: 'Your Tool',
+    
+    async fetch(config, ticketId, options) {
+        debug(`${this.label}プラグイン: チケット取得開始`, { ticketId });
+        return await fetchTicket(config, ticketId, options);
     },
     
     async update(config, ticketId, updateData) {
-        // チケット更新処理
-        return { success, message, updated };
+        debug(`${this.label}プラグイン: チケット更新開始`, { ticketId });
+        return await updateTicket(config, ticketId, updateData);
     },
     
     async validate(config) {
-        // 設定検証
-        return { valid, errors };
+        const errors = [];
+        
+        if (!config.url) {
+            errors.push('URLが設定されていません');
+        }
+        if (!config.api_key && !config.token) {
+            errors.push('認証情報が設定されていません');
+        }
+        
+        return {
+            valid: errors.length === 0,
+            errors
+        };
+    },
+    
+    extractTicketId(frontmatter) {
+        // プラグイン固有のID抽出ロジック
+        return frontmatter.id || frontmatter.issue_key || null;
     }
 };
+```
+
+### 4. fetch.jsの実装
+
+```javascript
+import { callApi } from '../../common/api.js';
+import { info, debug } from '../../common/logger.js';
+import { ApiError, AuthenticationError } from '../../common/error.js';
+
+export async function fetchTicket(config, ticketId, options) {
+    info('チケット取得', { ticketId });
+    
+    const url = `${config.url}/api/v1/issues/${ticketId}`;
+    const headers = {
+        'Authorization': `Bearer ${config.api_key}`,
+        'Content-Type': 'application/json'
+    };
+    
+    try {
+        const response = await callApi(url, { method: 'GET', headers });
+        const issue = await response.json();
+        
+        // YAMLフロントマター用のメタデータを構築
+        const meta = {
+            id: issue.id,
+            project: issue.project.name,
+            status: issue.status.name,
+            priority: issue.priority.name,
+            author: issue.author.name,
+            // ... 他のフィールド
+        };
+        
+        // Markdown本文を構築
+        const body = issue.description || '';
+        
+        // タイトルを抽出
+        const title = issue.subject;
+        
+        return { meta, body, title };
+    } catch (error) {
+        if (error.statusCode === 401 || error.statusCode === 403) {
+            throw new AuthenticationError('認証に失敗しました');
+        }
+        if (error.statusCode === 404) {
+            throw new ApiError(`チケット ${ticketId} が見つかりません`, 404);
+        }
+        throw error;
+    }
+}
+```
+
+### 5. update.jsの実装
+
+```javascript
+import { callApi } from '../../common/api.js';
+import { info, debug } from '../../common/logger.js';
+import { ApiError } from '../../common/error.js';
+
+export async function updateTicket(config, ticketId, updateData) {
+    info('チケット更新', { ticketId, updateData });
+    
+    const url = `${config.url}/api/v1/issues/${ticketId}`;
+    const headers = {
+        'Authorization': `Bearer ${config.api_key}`,
+        'Content-Type': 'application/json'
+    };
+    
+    // プロジェクト管理ツール固有の形式に変換
+    const payload = {
+        issue: {
+            notes: updateData.comment,
+            status_id: updateData.status,
+            // ... 他のフィールドマッピング
+        }
+    };
+    
+    const response = await callApi(url, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(payload)
+    });
+    
+    return {
+        success: response.ok,
+        message: response.ok ? 'チケットを更新しました' : '更新に失敗しました',
+        updated: updateData
+    };
+}
+```
+
+### 6. README.mdの作成
+
+プラグイン固有の情報を記載します。
+
+- API仕様とエンドポイント
+- 認証方式
+- フィールドマッピング
+- 制限事項や注意点
+
+参考: [RedmineプラグインのREADME](plugins/redmine/README.md)、[BacklogプラグインのREADME](plugins/backlog/README.md)
+
+### 7. Rolldownビルド設定
+
+`.ticket/rolldown.config.mjs`にプラグインのバンドル設定を追加します。
+
+```javascript
+export default defineConfig([
+    // ... 既存の設定 ...
+    
+    // 新規プラグイン(独立バンドル)
+    {
+        input: '_tools/lib/pm-tool/plugins/your-tool/index.js',
+        output: {
+            file: '_tools/lib/pm-tool/plugins/your-tool.mjs',
+            format: 'esm',
+        },
+        external: ['zx'],
+        resolve: {
+            extensions: ['.js'],
+        },
+    },
+]);
+```
+
+### 8. テストとデバッグ
+
+```bash
+# デバッグログを有効化
+export PM_TOOL_LOG_LEVEL=DEBUG
+
+# ビルド
+cd .ticket
+npm run build
+
+# 動作確認
+pm-tool fetch 1234
+pm-tool update ticket-1234.md --comment "テスト"
 ```
 
 エラーハンドリング
 -------------------------
 
 ### エラータイプ
+
+プラグイン実装では、適切なエラークラスを使用してください。
 
 - **ConfigError**: 設定エラー(設定ファイル、環境変数)
 - **AuthenticationError**: 認証エラー(APIキー、トークン)
@@ -261,103 +428,70 @@ export default {
 - 最大待機時間: 10秒
 - バックオフ倍率: 2倍(指数バックオフ)
 
-開発者向け情報
+コーディング規約
 -------------------------
 
-### 新規プラグインの開発
+### 基本方針
 
-詳細は別ドキュメント(開発者ガイド)を参照してください。
+- zxの組み込みモジュール(`fs`, `path`, `chalk`等)は明示的にインポートしない
+- `fs.readFileSync()`, `path.resolve()`のように`fs.`、`path.`プレフィックスを使用
+- エラーメッセージは日本語で明確に
+- ログ出力は`common/logger.js`を使用
+- 非同期処理は必ずasync/awaitを使用
 
-基本的な手順です。
+### ファイル構成
 
-- `.ticket/_tools/lib/pm-tool/plugins/{tool-name}/`ディレクトリを作成
-- `index.js`に共通インターフェースを実装
-- `fetch.js`、`update.js`に各機能を実装
-- `README.md`にプラグインドキュメントを作成
+```javascript
+#!/usr/bin/env zx
 
-### デバッグ
+// 外部モジュールのインポート(zx組み込み以外)
+import somePackage from 'some-package';
 
-デバッグログを有効にします。
+// 相対インポート
+import { helper } from './helper.js';
+import { callApi } from '../../common/api.js';
+import { info } from '../../common/logger.js';
+
+// 関数定義
+export async function myFunction() {
+    // 実装
+}
+```
+
+デバッグ
+-------------------------
+
+### デバッグログの有効化
 
 ```bash
 PM_TOOL_LOG_LEVEL=DEBUG pm-tool fetch 1234
 ```
 
-トラブルシューティング
+### よくある問題
+
+#### プラグインが読み込まれない
+
+- `.ticket/config.yml`の`type`とプラグインの`name`が一致しているか確認
+- ビルドが正常に完了しているか確認(`cd .ticket && npm run build`)
+
+#### API呼び出しエラー
+
+- 環境変数が正しく設定されているか確認
+- URLの形式が正しいか確認(末尾のスラッシュ等)
+- APIキーの権限が適切か確認
+
+参考資料
 -------------------------
 
-### コマンドが見つからない
+### 既存プラグイン
 
-```
-bash: pm-tool: command not found
-```
+- [Redmineプラグイン](plugins/redmine/): REST API v2対応、APIキー/Basic認証
+- [Backlogプラグイン](plugins/backlog/): REST API v2対応、APIキー認証
 
-対処方法です。
+### 外部ドキュメント
 
-PATHが設定されているか確認します。
-
-```bash
-echo $PATH | grep ".ticket/_tools"
-```
-
-PATHを設定します。
-
-```bash
-export PATH="$PATH:$(pwd)/.ticket/_tools"
-```
-
-### 設定ファイルが見つからない
-
-```
-エラー: 設定ファイルが見つかりません
-```
-
-対処方法です。
-
-- `.ticket/config.yml`が存在するか確認
-- カレントディレクトリがプロジェクトルートか確認
-
-### 環境変数が展開されない
-
-```
-エラー: 認証に失敗しました
-```
-
-対処方法です。
-
-環境変数が設定されているか確認します。
-
-```bash
-echo $REDMINE_URL
-echo $REDMINE_API_KEY
-```
-
-環境変数を設定します。
-
-```bash
-export REDMINE_URL=https://redmine.example.com
-export REDMINE_API_KEY=your_api_key_here
-```
-
-### URLが設定と一致しない
-
-```
-エラー: URLが設定と一致しません
-```
-
-対処方法です。
-
-- config.ymlのURLと指定したURLが一致しているか確認
-- プロトコル(http/https)、ホスト、ポートが完全一致する必要がある
-- 異なるRedmineサーバーのURLを指定していないか確認
-
-```bash
-# 正しい例(config.ymlと一致)
-pm-tool fetch https://redmine.example.com/issues/1234
-
-# エラー例(config.ymlと不一致)
-pm-tool fetch https://other-redmine.com/issues/1234
-```
+- [zx公式ドキュメント](https://google.github.io/zx/): zxの使い方
+- [Rolldown](https://rolldown.rs/): バンドラーの使い方
 
 ライセンス
 -------------------------

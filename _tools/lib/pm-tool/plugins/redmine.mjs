@@ -41,7 +41,7 @@ function formatMessage(level, message, data) {
 * @param {Object} [data] - 追加データ
 */
 function debug(message, data) {
-	if (currentLogLevel <= LOG_LEVELS.DEBUG) console.debug(formatMessage("DEBUG", message, data));
+	if (currentLogLevel <= LOG_LEVELS.DEBUG) console.error(formatMessage("DEBUG", message, data));
 }
 /**
 * INFOレベルのログを出力する
@@ -50,7 +50,7 @@ function debug(message, data) {
 * @param {Object} [data] - 追加データ
 */
 function info(message, data) {
-	if (currentLogLevel <= LOG_LEVELS.INFO) console.info(formatMessage("INFO", message, data));
+	if (currentLogLevel <= LOG_LEVELS.INFO) console.error(formatMessage("INFO", message, data));
 }
 /**
 * WARNレベルのログを出力する
@@ -402,7 +402,7 @@ function formatAsYamlFrontmatter(issue) {
 	removeUndefinedFields(meta);
 	return {
 		meta,
-		body: issue.description || "",
+		body: issue.description ? issue.description.replace(/\r\n/g, "\n").replace(/\r/g, "\n") : "",
 		title: issue.subject || ""
 	};
 }
@@ -485,17 +485,11 @@ function buildIssueUpdateData(updateData) {
 	const frontmatter = updateData.frontmatter || {};
 	const body = updateData.body || "";
 	if (updateData.comment) issueData.notes = updateData.comment;
-	if (updateData.description) issueData.description = updateData.description;
-	else if (body) {
-		let description = body;
-		const setextMatch = body.match(/^[^\n]+\n=+\n+(.+)$/s);
-		if (setextMatch) description = setextMatch[1].trim();
-		else {
-			const atxMatch = body.match(/^#\s+[^\n]+\n+(.+)$/s);
-			if (atxMatch) description = atxMatch[1].trim();
-		}
-		if (description && description !== body) issueData.description = description;
+	if (body) {
+		const subject = extractSubjectFromMarkdown(body);
+		if (subject) issueData.subject = subject;
 	}
+	if (body) issueData.description = extractDescriptionFromMarkdown(body);
 	if (updateData.status) issueData.status_id = parseInt(updateData.status, 10);
 	else if (frontmatter.status?.id) issueData.status_id = frontmatter.status.id;
 	if (updateData.assigned_to) issueData.assigned_to_id = parseInt(updateData.assigned_to, 10);
@@ -512,6 +506,38 @@ function buildIssueUpdateData(updateData) {
 	if (updateData.category) issueData.category_id = parseInt(updateData.category, 10);
 	return issueData;
 }
+/**
+* Markdown本文からsubject（件名）を抽出する
+* h1見出しを取得して返す
+*
+* @param {string} body - Markdown本文（LF改行）
+* @returns {string} 件名（h1見出しのテキスト）
+*/
+function extractSubjectFromMarkdown(body) {
+	if (!body) return "";
+	const setextMatch = body.match(/^([^\n]+)\n=+/);
+	if (setextMatch) return setextMatch[1].trim();
+	const atxMatch = body.match(/^#\s+(.+)$/m);
+	if (atxMatch) return atxMatch[1].trim();
+	return "";
+}
+/**
+* Markdown本文からdescription（説明）を抽出する
+* h1見出しを除去し、残りの本文を返す
+*
+* 注: この関数は既にLFに正規化された本文を受け取ることを前提とする
+*
+* @param {string} body - Markdown本文（LF改行）
+* @returns {string} 説明（h1見出しを除いた本文）
+*/
+function extractDescriptionFromMarkdown(body) {
+	if (!body) return "";
+	const setextMatch = body.match(/^[^\n]+\n=+\n+(.+)$/s);
+	if (setextMatch) return setextMatch[1].trim();
+	const atxMatch = body.match(/^#\s+[^\n]+\n+(.+)$/s);
+	if (atxMatch) return atxMatch[1].trim();
+	return body.trim();
+}
 
 //#endregion
 //#region _tools/lib/pm-tool/plugins/redmine/index.js
@@ -521,9 +547,7 @@ function buildIssueUpdateData(updateData) {
 var redmine_default = {
 	name: "redmine",
 	label: "Redmine",
-	defaults: {
-		file_prefix: 'ticket-'
-	},
+	defaults: { file_prefix: "ticket-" },
 	async fetch(config, ticketId, options = {}) {
 		debug("Redmineプラグイン: fetch", { ticketId });
 		return await fetchTicket(config, ticketId, options);
@@ -531,6 +555,66 @@ var redmine_default = {
 	async update(config, ticketId, updateData = {}) {
 		debug("Redmineプラグイン: update", { ticketId });
 		return await updateTicket(config, ticketId, updateData);
+	},
+	extractTicketId(frontmatter) {
+		return frontmatter.id || null;
+	},
+	parseUrl(url) {
+		try {
+			const match = new URL(url).pathname.match(/\/issues\/(\d+)/);
+			return match ? match[1] : null;
+		} catch (error$1) {
+			return null;
+		}
+	},
+	getUpdateOptions() {
+		return [
+			{
+				name: "comment",
+				description: "コメント",
+				type: "string"
+			},
+			{
+				name: "status",
+				description: "ステータスID",
+				type: "number"
+			},
+			{
+				name: "assigned-to",
+				description: "担当者ID",
+				type: "number"
+			},
+			{
+				name: "done-ratio",
+				description: "進捗率(0-100)",
+				type: "number"
+			},
+			{
+				name: "estimated-hours",
+				description: "予定工数",
+				type: "number"
+			},
+			{
+				name: "start-date",
+				description: "開始日(YYYY-MM-DD)",
+				type: "string"
+			},
+			{
+				name: "due-date",
+				description: "期日(YYYY-MM-DD)",
+				type: "string"
+			},
+			{
+				name: "priority",
+				description: "優先度ID",
+				type: "number"
+			},
+			{
+				name: "category",
+				description: "カテゴリID",
+				type: "number"
+			}
+		];
 	},
 	async validate(config) {
 		debug("Redmineプラグイン: validate");

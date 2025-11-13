@@ -48,7 +48,7 @@ function formatMessage(level, message, data) {
  */
 export function debug(message, data) {
     if (currentLogLevel <= LOG_LEVELS.DEBUG) {
-        console.debug(formatMessage('DEBUG', message, data));
+        console.error(formatMessage('DEBUG', message, data));
     }
 }
 
@@ -60,7 +60,7 @@ export function debug(message, data) {
  */
 export function info(message, data) {
     if (currentLogLevel <= LOG_LEVELS.INFO) {
-        console.info(formatMessage('INFO', message, data));
+        console.error(formatMessage('INFO', message, data));
     }
 }
 

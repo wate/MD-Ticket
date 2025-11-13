@@ -1,205 +1,163 @@
 Redmineプラグイン
 =========================
 
-MD-TicketとRedmineを連携するためのプラグインです。
+概要
+-------------------------
+
+RedmineプロジェクトとMD-Ticketのハイブリッド運用を実現するpm-toolプラグインです。
+Redmine REST API v2を使用してチケット情報の取得・更新を行います。
 
 機能
 -------------------------
 
-- **fetch**: Redmineチケット情報を取得し、YAMLフロントマター形式で返す
-- **update**: Redmineチケット情報を更新する
-- **validate**: Redmine設定の妥当性を検証する
+- **チケット取得(fetch)**: RedmineチケットをMarkdownファイルとして保存
+- **チケット更新(update)**: Markdownファイルの変更をRedmineチケットに反映
 
-設定
+サポートフィールド
 -------------------------
 
-`.ticket/config.yml`に以下の設定を追加してください。
+### 取得時(Redmine → YAML)
 
-### APIキー認証（推奨）
+YAMLフロントマターに以下のフィールドが保存されます。
+
+- `id`: チケットID
+- `project`: プロジェクト名
+- `tracker`: トラッカー名
+- `status`: ステータス名
+- `priority`: 優先度名
+- `author`: 作成者
+- `assigned_to`: 担当者(任意)
+- `start_date`: 開始日(任意)
+- `due_date`: 期日(任意)
+- `done_ratio`: 進捗率
+- `estimated_hours`: 予定工数(任意)
+- `created_on`: 作成日時
+- `updated_on`: 更新日時
+
+### 更新時(YAML → Redmine)
+
+以下のフィールドが更新可能です。
+
+- `comment`: コメント
+- `status`: ステータスID
+- `assigned_to`: 担当者ID
+- `done_ratio`: 進捗率(0-100)
+- `estimated_hours`: 予定工数
+- `start_date`: 開始日
+- `due_date`: 期日
+- `priority`: 優先度ID
+- `category`: カテゴリID
+
+設定例
+-------------------------
+
+`.ticket/config.yml`でRedmine連携を有効化します。
+
+### APIキー認証(推奨)
 
 Redmine個人設定でAPIキーが発行できる場合はこちらを使用してください。
 
 ```yaml
 integration:
-    pm_tool:
-        type: redmine
-        redmine:
-            url: ${REDMINE_URL}
-            api_key: ${REDMINE_API_KEY}
-```
-
-環境変数を設定してください。
-
-```bash
-export REDMINE_URL=https://redmine.example.com
-export REDMINE_API_KEY=your_api_key_here
+  pm_tool:
+    type: redmine
+    redmine:
+      url: ${REDMINE_URL}
+      api_key: ${REDMINE_API_KEY}
 ```
 
 ### Basic認証
 
-APIキーが発行できない環境（Redmine本家など）ではBasic認証を使用できます。
+APIキーが発行できない環境(Redmine本家など)ではBasic認証を使用できます。
 
 ```yaml
 integration:
-    pm_tool:
-        type: redmine
-        redmine:
-            url: ${REDMINE_URL}
-            username: ${REDMINE_USERNAME}
-            password: ${REDMINE_PASSWORD}
+  pm_tool:
+    type: redmine
+    redmine:
+      url: ${REDMINE_URL}
+      username: ${REDMINE_USERNAME}
+      password: ${REDMINE_PASSWORD}
 ```
 
-環境変数を設定してください。
+**注意**: APIキーとBasic認証の両方が設定されている場合、APIキーが優先されます。
+
+### 環境変数設定
+
+`.env`または`.envrc`で環境変数を設定します。
 
 ```bash
-export REDMINE_URL=https://www.redmine.org
-export REDMINE_USERNAME=your_username
-export REDMINE_PASSWORD=your_password
+# APIキー認証の場合
+export REDMINE_URL="https://redmine.example.com"
+export REDMINE_API_KEY="your-api-key-here"
+
+# Basic認証の場合
+export REDMINE_URL="https://www.redmine.org"
+export REDMINE_USERNAME="your-username"
+export REDMINE_PASSWORD="your-password"
 ```
 
-注意: APIキーとBasic認証の両方が設定されている場合、APIキーが優先されます。
-
-使用方法
+使用例
 -------------------------
 
-### チケット情報の取得
+### チケット取得
 
 ```bash
+# チケット1234を取得
 pm-tool fetch 1234
+
+# URLで取得
+pm-tool fetch https://redmine.example.com/issues/1234
+
+# 取得後のファイル: .ticket/task/ticket-1234.md
 ```
 
-### チケット情報の更新
+### チケット更新
 
 ```bash
-# コメントを追加
-pm-tool update 1234 --comment "実装完了"
+# Markdownファイルの変更をRedmineに反映
+pm-tool update task/ticket-1234.md
 
-# ステータスを更新
-pm-tool update 1234 --status 3
+# コメントを追加
+pm-tool update task/ticket-1234.md --comment "実装完了"
 
 # 複数項目を同時に更新
-pm-tool update 1234 --comment "実装完了" --status 3 --done-ratio 100
+pm-tool update task/ticket-1234.md --comment "実装完了" --status 3 --done-ratio 100
 ```
-
-### 更新可能な項目
-
-- `--comment`: コメント（notes）
-- `--status`: ステータスID
-- `--assigned-to`: 担当者ID
-- `--done-ratio`: 進捗率（0-100）
-- `--estimated-hours`: 予定工数
-- `--start-date`: 開始日（YYYY-MM-DD）
-- `--due-date`: 期日（YYYY-MM-DD）
-- `--priority`: 優先度ID
-- `--category`: カテゴリID
 
 エラーハンドリング
 -------------------------
 
-以下のエラーが発生する可能性があります。
+以下のエラーに対応しています。
 
-- **ConfigError**: 設定エラー（URL未設定、認証情報未設定）
-- **AuthenticationError**: 認証エラー（APIキーまたはusername/passwordが無効）
-- **ApiError**: APIエラー（チケットが存在しない、権限不足等）
-- **NetworkError**: ネットワークエラー（接続失敗、タイムアウト等）
-- **ValidationError**: バリデーションエラー（不正な入力値）
+- **401 Unauthorized**: APIキーまたは認証情報が無効です。環境変数を確認してください。
+- **403 Forbidden**: チケットへのアクセス権限がありません。
+- **404 Not Found**: チケットが見つかりません。チケットIDを確認してください。
+- **Network Error**: ネットワーク接続を確認してください。自動リトライ(最大3回)が実行されます。
 
-APIリファレンス
+技術詳細
 -------------------------
 
-### fetch(config, ticketId, options)
+### API仕様
 
-Redmineチケット情報を取得する。
+- **Base URL**: `{REDMINE_URL}/`
+- **認証方式**:
+    - APIキー: `X-Redmine-API-Key`ヘッダー
+    - Basic認証: `Authorization`ヘッダー
+- **主要エンドポイント**:
+    - `GET /issues/{id}.json`: チケット取得
+    - `PUT /issues/{id}.json`: チケット更新
 
-パラメータ:
+### リトライ機構
 
-- `config`: Redmine設定オブジェクト
-    - `url`: Redmine URL
-    - `api_key`: Redmine APIキー
-- `ticketId`: チケットID（文字列または数値）
-- `options`: オプション（現在未使用）
+ネットワークエラー等の一時的な障害に対して、指数バックオフ付きリトライを実行します。
 
-戻り値:
+- 最大リトライ回数: 3回(取得時)、2回(更新時)
+- 初回待機時間: 1秒
+- バックオフ倍率: 2倍
+- 最大待機時間: 10秒
 
-```javascript
-{
-    meta: {
-        pm_tool: {
-            type: 'redmine',
-            issue_id: 1234,
-            project: { id: 1, name: 'Project Name' },
-            // ... その他のメタデータ
-        }
-    },
-    body: 'チケットの説明文',
-    title: 'チケットのタイトル'
-}
-```
-
-### update(config, ticketId, updateData)
-
-Redmineチケット情報を更新する。
-
-パラメータ:
-
-- `config`: Redmine設定オブジェクト
-- `ticketId`: チケットID
-- `updateData`: 更新データオブジェクト
-    - `comment`: コメント
-    - `status`: ステータスID
-    - `assigned_to`: 担当者ID
-    - `done_ratio`: 進捗率
-    - `estimated_hours`: 予定工数
-    - `start_date`: 開始日
-    - `due_date`: 期日
-    - `priority`: 優先度ID
-    - `category`: カテゴリID
-
-戻り値:
-
-```javascript
-{
-    success: true,
-    message: 'チケット #1234 を更新しました',
-    updated: { /* 更新されたフィールド */ }
-}
-```
-
-トラブルシューティング
+参考情報
 -------------------------
 
-### 認証エラー
-
-```
-エラー: 認証に失敗しました。APIキーまたはトークンを確認してください
-```
-
-対処方法:
-
-1. 環境変数`REDMINE_API_KEY`が正しく設定されているか確認
-2. RedmineのAPIキーが有効か確認（Redmine管理画面で再生成）
-3. RedmineでREST APIが有効になっているか確認
-
-### ネットワークエラー
-
-```
-エラー: ネットワークエラーが発生しました
-```
-
-対処方法:
-
-1. Redmine URLが正しいか確認
-2. Redmineサーバーにアクセス可能か確認
-3. ファイアウォール設定を確認
-
-### チケットが見つからない
-
-```
-APIエラー: Not Found
-```
-
-対処方法:
-
-1. チケットIDが正しいか確認
-2. チケットが削除されていないか確認
-3. チケットへのアクセス権限があるか確認
+- [Redmine REST API](https://www.redmine.org/projects/redmine/wiki/Rest_api): 公式APIドキュメント
