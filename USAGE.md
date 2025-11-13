@@ -214,6 +214,86 @@ YAMLフロントマターから以下のフィールドを抽出して更新し�
 
 本文(h1見出し以降)は`description`として更新されます。
 
+### Backlog連携の実践例
+
+#### 環境設定
+
+```bash
+# 環境変数を設定(.envまたは.envrc)
+export BACKLOG_URL="https://your-space.backlog.com"
+export BACKLOG_API_KEY="your-api-key-here"
+```
+
+#### config.ymlの設定
+
+```yaml
+integration:
+  pm_tool:
+    type: backlog
+    output_dir: task
+    file_prefix: ''
+    backlog:
+      url: ${BACKLOG_URL}
+      api_key: ${BACKLOG_API_KEY}
+```
+
+#### 課題情報の取得
+
+```bash
+# 課題キーを指定して取得
+pm-tool fetch PROJ-123
+
+# task/PROJ-123.mdが作成される
+```
+
+**取得されるファイル形式**:
+
+```markdown
+---
+backlog_id: 123456
+backlog_key: PROJ-123
+project_id: 1000
+title: ユーザー認証機能の実装
+type: タスク
+status: 処理中
+priority: 高
+assignee: 山田太郎
+created_at: 2025-10-25T10:00:00Z
+updated_at: 2025-11-01T15:30:00Z
+start_date: '2025-11-01'
+due_date: '2025-11-15'
+estimated_hours: 8
+actual_hours: 0
+---
+
+## 概要
+
+ログイン機能とセッション管理を実装する。
+
+## 要件
+
+- メールアドレスとパスワードでログイン
+- セッションの有効期限は24時間
+- ログアウト機能
+```
+
+#### 課題情報の更新
+
+```bash
+# ファイルパスを指定して更新
+pm-tool update task/PROJ-123.md
+```
+
+**更新可能なフィールド**:
+
+- `title`: 件名
+- `start_date`: 開始日
+- `due_date`: 期限日
+- `estimated_hours`: 予定時間
+- `actual_hours`: 実績時間
+
+**注**: ステータス、担当者、優先度の更新は現在未サポートです。Backlog側で手動更新してください。
+
 ### ハイブリッド運用の実践手順
 
 #### 粗粒度チケットの取得

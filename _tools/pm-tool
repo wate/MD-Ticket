@@ -1,10 +1,9 @@
 #!/usr/bin/env zx
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import { dirname, resolve } from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath } from "node:url";
 
 //#region _tools/lib/pm-tool/config.js
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 /**
 * 環境変数を展開する
 * ${VARIABLE_NAME}形式の文字列をprocess.env.VARIABLE_NAMEに置き換える
@@ -41,9 +40,9 @@ function expandEnvVarsRecursive(obj) {
 * @throws {Error} 設定ファイルが見つからない、またはパースできない場合
 */
 function loadConfig() {
-	const configPath = resolve(__dirname, "../config.yml");
+	const configPath = path.resolve(__dirname, "../config.yml");
 	try {
-		const configContent = readFileSync(configPath, "utf8");
+		const configContent = fs.readFileSync(configPath, "utf8");
 		return expandEnvVarsRecursive(YAML.parse(configContent));
 	} catch (error$1) {
 		if (error$1.code === "ENOENT") throw new Error(`設定ファイルが見つかりません: ${configPath}`);
@@ -66,7 +65,8 @@ function getPmToolConfig() {
 	if (!toolConfig) throw new Error(`ツール "${toolName}" の設定が見つかりません`);
 	return {
 		tool: toolName,
-		config: toolConfig
+		config: toolConfig,
+		pmToolConfig
 	};
 }
 
@@ -149,9 +149,11 @@ var PmToolError = class extends Error {
 //#region _tools/lib/pm-tool/cli.js
 /**
 * 使用方法を表示する
+*
+* @param {Object} plugin - プラグインオブジェクト（オプション）
 */
-function showUsage() {
-	console.log(`
+function showUsage(plugin = null) {
+	let usageText = `
 使用方法:
   pm-tool fetch <チケット番号>        チケット情報を取得する
   pm-tool update <ファイルパス>       チケット情報を更新する
@@ -164,15 +166,26 @@ function showUsage() {
 
 環境変数:
   PM_TOOL_LOG_LEVEL                    ログレベル (DEBUG, INFO, WARN, ERROR)
-                                       デフォルト: INFO
+                                       デフォルト: INFO`;
+	if (plugin && typeof plugin.getUpdateOptions === "function") {
+		const options = plugin.getUpdateOptions();
+		if (options && options.length > 0) {
+			usageText += `\n\n${plugin.label}固有の更新オプション:`;
+			for (const opt of options) {
+				const padding = " ".repeat(Math.max(0, 30 - opt.name.length));
+				usageText += `\n  --${opt.name}${padding}${opt.description}`;
+			}
+		}
+	}
+	usageText += `
 
 例:
   pm-tool fetch 1234
   pm-tool fetch https://redmine.example.com/issues/1234
   pm-tool update ticket-1234.md
   pm-tool update ticket-1234.md --dry-run
-  pm-tool update ticket-1234.md --comment "実装完了"
-    `.trim());
+  pm-tool update ticket-1234.md --comment "実装完了"`;
+	console.log(usageText.trim());
 }
 /**
 * バージョン情報を表示する
@@ -254,29 +267,33 @@ ${body}
 */
 async function executeFetch(ticketIdOrUrl, options = {}) {
 	if (!ticketIdOrUrl) throw new PmToolError("チケット番号またはURLを指定してください", "INVALID_ARGUMENT");
-	const { tool, config } = getPmToolConfig();
+	const { tool, config, pmToolConfig } = getPmToolConfig();
 	const ticketId = parseTicketIdFromUrl(ticketIdOrUrl, config.url);
 	info(`チケット ${ticketId} の情報を取得します...`);
-	const result = await (await loadPlugin(tool)).fetch(config, ticketId, options);
+	const plugin = await loadPlugin(tool);
+	const result = await plugin.fetch(config, ticketId, options);
 	info("チケット情報の取得に成功しました");
 	if (options.stdout) {
 		if (options.json) console.log(JSON.stringify(result, null, 2));
 		else {
-			const markdown = formatMarkdown(result);
-			console.log(markdown);
+			const markdown$1 = formatMarkdown(result);
+			console.log(markdown$1);
 		}
 		return result;
 	}
-	const outputDir = options.dir || config.output_dir || ".";
-	const prefix = options.prefix || config.fetch?.prefix || "ticket-";
+	const outputDir = options.dir || pmToolConfig.output_dir || ".";
+	const prefix = options.prefix || pmToolConfig.file_prefix || plugin.defaults?.file_prefix || "";
 	if (options.json) {
-		const filepath$1 = resolve(outputDir, `${prefix}${ticketId}.json`);
-		writeFileSync(filepath$1, JSON.stringify(result, null, 2), "utf8");
+		const filename$1 = `${prefix}${ticketId}.json`;
+		const filepath$1 = path.resolve(outputDir, filename$1);
+		fs.writeFileSync(filepath$1, JSON.stringify(result, null, 2), "utf8");
 		info(`JSONファイルを保存しました: ${filepath$1}`);
 		return result;
 	}
-	const filepath = resolve(outputDir, `${prefix}${ticketId}.md`);
-	writeFileSync(filepath, formatMarkdown(result), "utf8");
+	const filename = `${prefix}${ticketId}.md`;
+	const filepath = path.resolve(outputDir, filename);
+	const markdown = formatMarkdown(result);
+	fs.writeFileSync(filepath, markdown, "utf8");
 	info(`Markdownファイルを保存しました: ${filepath}`);
 	return result;
 }
@@ -288,16 +305,16 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
 */
 async function executeUpdate(filePath, options = {}) {
 	if (!filePath) throw new PmToolError("チケットファイルパスを指定してください", "INVALID_ARGUMENT");
-	if (!existsSync(filePath)) throw new PmToolError(`ファイルが見つかりません: ${filePath}`, "FILE_NOT_FOUND");
+	if (!fs.existsSync(filePath)) throw new PmToolError(`ファイルが見つかりません: ${filePath}`, "FILE_NOT_FOUND");
 	const { tool, config } = getPmToolConfig();
-	const frontmatterMatch = readFileSync(filePath, "utf8").match(/^---\n([\s\S]+?)\n---\n([\s\S]*)$/);
+	const frontmatterMatch = fs.readFileSync(filePath, "utf8").match(/^---\n([\s\S]+?)\n---\n([\s\S]*)$/);
 	if (!frontmatterMatch) throw new PmToolError("YAMLフロントマターが見つかりません", "INVALID_FORMAT");
 	const frontmatter = YAML.parse(frontmatterMatch[1]);
 	const bodyContent = frontmatterMatch[2].trim();
-	const ticketId = frontmatter.id;
-	if (!ticketId) throw new PmToolError("YAMLフロントマターにidが含まれていません", "INVALID_FORMAT");
-	info(`チケット ${ticketId} を更新します...`);
 	const plugin = await loadPlugin(tool);
+	const ticketId = plugin.extractTicketId(frontmatter);
+	if (!ticketId) throw new PmToolError(`YAMLフロントマターからチケットIDを抽出できませんでした (${tool}プラグイン)`, "INVALID_FORMAT");
+	info(`チケット ${ticketId} を更新します...`);
 	const updateData = {
 		...options,
 		frontmatter,
@@ -370,7 +387,12 @@ async function main() {
 		}
 		switch (command) {
 			case "help":
-				showUsage();
+				try {
+					const { tool } = getPmToolConfig();
+					showUsage(await loadPlugin(tool));
+				} catch (error$1) {
+					showUsage();
+				}
 				break;
 			case "version":
 				showVersion();

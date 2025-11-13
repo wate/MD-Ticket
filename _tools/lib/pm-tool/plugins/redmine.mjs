@@ -521,9 +521,6 @@ function buildIssueUpdateData(updateData) {
 var redmine_default = {
 	name: "redmine",
 	label: "Redmine",
-	defaults: {
-		file_prefix: 'ticket-'
-	},
 	async fetch(config, ticketId, options = {}) {
 		debug("Redmineプラグイン: fetch", { ticketId });
 		return await fetchTicket(config, ticketId, options);
@@ -531,6 +528,58 @@ var redmine_default = {
 	async update(config, ticketId, updateData = {}) {
 		debug("Redmineプラグイン: update", { ticketId });
 		return await updateTicket(config, ticketId, updateData);
+	},
+	extractTicketId(frontmatter) {
+		return frontmatter.id || null;
+	},
+	getUpdateOptions() {
+		return [
+			{
+				name: "comment",
+				description: "コメント",
+				type: "string"
+			},
+			{
+				name: "status",
+				description: "ステータスID",
+				type: "number"
+			},
+			{
+				name: "assigned-to",
+				description: "担当者ID",
+				type: "number"
+			},
+			{
+				name: "done-ratio",
+				description: "進捗率(0-100)",
+				type: "number"
+			},
+			{
+				name: "estimated-hours",
+				description: "予定工数",
+				type: "number"
+			},
+			{
+				name: "start-date",
+				description: "開始日(YYYY-MM-DD)",
+				type: "string"
+			},
+			{
+				name: "due-date",
+				description: "期日(YYYY-MM-DD)",
+				type: "string"
+			},
+			{
+				name: "priority",
+				description: "優先度ID",
+				type: "number"
+			},
+			{
+				name: "category",
+				description: "カテゴリID",
+				type: "number"
+			}
+		];
 	},
 	async validate(config) {
 		debug("Redmineプラグイン: validate");

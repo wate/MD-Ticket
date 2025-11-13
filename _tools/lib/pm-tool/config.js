@@ -1,11 +1,12 @@
 #!/usr/bin/env zx
 
-import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from 'node:url';
+
+// zx内包のモジュール(fs, path)はimport不要
+// グローバルに利用可能: fs, path, os, chalk, argv, glob, which, etc.
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = path.dirname(__filename);
 
 /**
  * 環境変数を展開する
@@ -59,10 +60,10 @@ function expandEnvVarsRecursive(obj) {
 export function loadConfig() {
     // 実行ファイル(pm-tool)のディレクトリから見た.ticket/config.ymlへのパス
     // pm-toolは.ticket/_tools/にあるため、../config.ymlで.ticket/config.ymlを指す
-    const configPath = resolve(__dirname, '../config.yml');
+    const configPath = path.resolve(__dirname, '../config.yml');
 
     try {
-        const configContent = readFileSync(configPath, 'utf8');
+        const configContent = fs.readFileSync(configPath, 'utf8');
         const config = YAML.parse(configContent);
 
         // 環境変数を展開

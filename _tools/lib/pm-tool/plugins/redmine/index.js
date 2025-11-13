@@ -38,6 +38,35 @@ export default {
     },
 
     /**
+     * YAMLフロントマターからチケットIDを抽出する
+     *
+     * @param {Object} frontmatter - YAMLフロントマター
+     * @returns {string|null} チケットID
+     */
+    extractTicketId(frontmatter) {
+        return frontmatter.id || null;
+    },
+
+    /**
+     * 更新時に使用可能なオプションを返す
+     *
+     * @returns {Array<Object>} オプション一覧
+     */
+    getUpdateOptions() {
+        return [
+            { name: 'comment', description: 'コメント', type: 'string' },
+            { name: 'status', description: 'ステータスID', type: 'number' },
+            { name: 'assigned-to', description: '担当者ID', type: 'number' },
+            { name: 'done-ratio', description: '進捗率(0-100)', type: 'number' },
+            { name: 'estimated-hours', description: '予定工数', type: 'number' },
+            { name: 'start-date', description: '開始日(YYYY-MM-DD)', type: 'string' },
+            { name: 'due-date', description: '期日(YYYY-MM-DD)', type: 'string' },
+            { name: 'priority', description: '優先度ID', type: 'number' },
+            { name: 'category', description: 'カテゴリID', type: 'number' },
+        ];
+    },
+
+    /**
      * 設定を検証する
      *
      * @param {Object} config - Redmine設定
