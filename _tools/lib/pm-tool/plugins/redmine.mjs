@@ -528,6 +528,7 @@ function extractDescriptionFromMarkdown(body) {
 var redmine_default = {
 	name: "redmine",
 	label: "Redmine",
+	defaults: { file_prefix: "ticket-" },
 	async fetch(config, ticketId, options = {}) {
 		debug("Redmineプラグイン: fetch", { ticketId });
 		return await fetchTicket(config, ticketId, options);

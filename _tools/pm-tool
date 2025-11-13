@@ -243,21 +243,22 @@ async function loadPlugin(toolName) {
 * @throws {PmToolError} URL不一致またはチケット番号抽出失敗
 */
 function parseTicketIdFromUrl(input, configUrl) {
-	if (!input.startsWith("http://") && !input.startsWith("https://")) return input;
+	const inputStr = String(input);
+	if (!inputStr.startsWith("http://") && !inputStr.startsWith("https://")) return inputStr;
 	try {
-		const inputUrl = new URL(input);
+		const inputUrl = new URL(inputStr);
 		const baseUrl = new URL(configUrl);
-		if (inputUrl.protocol !== baseUrl.protocol || inputUrl.hostname !== baseUrl.hostname || inputUrl.port !== baseUrl.port) throw new PmToolError(`URLが設定と一致しません\n設定: ${configUrl}\n入力: ${input}`, "URL_MISMATCH", {
+		if (inputUrl.protocol !== baseUrl.protocol || inputUrl.hostname !== baseUrl.hostname || inputUrl.port !== baseUrl.port) throw new PmToolError(`URLが設定と一致しません\n設定: ${configUrl}\n入力: ${inputStr}`, "URL_MISMATCH", {
 			configUrl,
-			inputUrl: input
+			inputUrl: inputStr
 		});
 		const match = inputUrl.pathname.match(/\/issues\/(\d+)/);
-		if (!match) throw new PmToolError(`URLからチケット番号を抽出できませんでした: ${input}`, "INVALID_URL_FORMAT", { url: input });
+		if (!match) throw new PmToolError(`URLからチケット番号を抽出できませんでした: ${inputStr}`, "INVALID_URL_FORMAT", { url: inputStr });
 		return match[1];
 	} catch (error$1) {
 		if (error$1 instanceof PmToolError) throw error$1;
-		throw new PmToolError(`不正なURL形式です: ${input}`, "INVALID_URL", {
-			url: input,
+		throw new PmToolError(`不正なURL形式です: ${inputStr}`, "INVALID_URL", {
+			url: inputStr,
 			originalError: error$1.message
 		});
 	}

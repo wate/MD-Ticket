@@ -12,6 +12,13 @@ export default {
     label: 'Redmine',
 
     /**
+     * デフォルト設定
+     */
+    defaults: {
+        file_prefix: 'ticket-'
+    },
+
+    /**
      * チケット情報を取得する
      *
      * @param {Object} config - Redmine設定
