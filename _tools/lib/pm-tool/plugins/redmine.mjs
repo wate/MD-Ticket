@@ -485,6 +485,10 @@ function buildIssueUpdateData(updateData) {
 	const frontmatter = updateData.frontmatter || {};
 	const body = updateData.body || "";
 	if (updateData.comment) issueData.notes = updateData.comment;
+	if (body) {
+		const subject = extractSubjectFromMarkdown(body);
+		if (subject) issueData.subject = subject;
+	}
 	if (body) issueData.description = extractDescriptionFromMarkdown(body);
 	if (updateData.status) issueData.status_id = parseInt(updateData.status, 10);
 	else if (frontmatter.status?.id) issueData.status_id = frontmatter.status.id;
@@ -501,6 +505,21 @@ function buildIssueUpdateData(updateData) {
 	if (updateData.priority) issueData.priority_id = parseInt(updateData.priority, 10);
 	if (updateData.category) issueData.category_id = parseInt(updateData.category, 10);
 	return issueData;
+}
+/**
+* Markdown本文からsubject（件名）を抽出する
+* h1見出しを取得して返す
+*
+* @param {string} body - Markdown本文（LF改行）
+* @returns {string} 件名（h1見出しのテキスト）
+*/
+function extractSubjectFromMarkdown(body) {
+	if (!body) return "";
+	const setextMatch = body.match(/^([^\n]+)\n=+/);
+	if (setextMatch) return setextMatch[1].trim();
+	const atxMatch = body.match(/^#\s+(.+)$/m);
+	if (atxMatch) return atxMatch[1].trim();
+	return "";
 }
 /**
 * Markdown本文からdescription（説明）を抽出する

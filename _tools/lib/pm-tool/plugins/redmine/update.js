@@ -109,6 +109,14 @@ function buildIssueUpdateData(updateData) {
         issueData.notes = updateData.comment;
     }
 
+    // 件名（subject）- Markdown本文のh1見出しから自動抽出
+    if (body) {
+        const subject = extractSubjectFromMarkdown(body);
+        if (subject) {
+            issueData.subject = subject;
+        }
+    }
+
     // 説明（description）- Markdown本文から自動抽出（h1見出しを除く）
     if (body) {
         // ※bodyは既にcli.jsでCRLF→LF正規化済み
@@ -168,6 +176,34 @@ function buildIssueUpdateData(updateData) {
     }
 
     return issueData;
+}
+
+/**
+ * Markdown本文からsubject（件名）を抽出する
+ * h1見出しを取得して返す
+ *
+ * @param {string} body - Markdown本文（LF改行）
+ * @returns {string} 件名（h1見出しのテキスト）
+ */
+function extractSubjectFromMarkdown(body) {
+    if (!body) {
+        return '';
+    }
+
+    // setext記法のh1（タイトル\n===）を抽出
+    const setextMatch = body.match(/^([^\n]+)\n=+/);
+    if (setextMatch) {
+        return setextMatch[1].trim();
+    }
+
+    // atx記法のh1（# タイトル）を抽出
+    const atxMatch = body.match(/^#\s+(.+)$/m);
+    if (atxMatch) {
+        return atxMatch[1].trim();
+    }
+
+    // h1が見つからない場合は空文字列を返す
+    return '';
 }
 
 /**

@@ -374,8 +374,16 @@ async function handleApiResponse(response) {
 */
 function buildUpdatePayload(updateData, originalIssue) {
 	const frontmatter = updateData.frontmatter || {};
+	const body = updateData.body || "";
 	const payload = {};
-	if (frontmatter.title && frontmatter.title !== originalIssue.summary) payload.summary = frontmatter.title;
+	if (body) {
+		const subject = extractSubjectFromMarkdown(body);
+		if (subject && subject !== originalIssue.summary) payload.summary = subject;
+	}
+	if (body) {
+		const description = extractDescriptionFromMarkdown(body);
+		if (description && description !== originalIssue.description) payload.description = description;
+	}
 	if (frontmatter.status && frontmatter.status !== originalIssue.status?.name) warn("ステータスの更新はサポートされていません。Backlog側で手動更新してください。", {
 		current: originalIssue.status?.name,
 		requested: frontmatter.status
@@ -385,6 +393,36 @@ function buildUpdatePayload(updateData, originalIssue) {
 	if (frontmatter.estimated_hours !== void 0) payload.estimatedHours = frontmatter.estimated_hours;
 	if (frontmatter.actual_hours !== void 0) payload.actualHours = frontmatter.actual_hours;
 	return payload;
+}
+/**
+* Markdown本文からsubject（件名）を抽出する
+* h1見出しを取得して返す
+*
+* @param {string} body - Markdown本文（LF改行）
+* @returns {string} 件名（h1見出しのテキスト）
+*/
+function extractSubjectFromMarkdown(body) {
+	if (!body) return "";
+	const setextMatch = body.match(/^([^\n]+)\n=+/);
+	if (setextMatch) return setextMatch[1].trim();
+	const atxMatch = body.match(/^#\s+(.+)$/m);
+	if (atxMatch) return atxMatch[1].trim();
+	return "";
+}
+/**
+* Markdown本文からdescription（説明）を抽出する
+* h1見出しを除去し、残りの本文を返す
+*
+* @param {string} body - Markdown本文（LF改行）
+* @returns {string} 説明（h1見出しを除いた本文）
+*/
+function extractDescriptionFromMarkdown(body) {
+	if (!body) return "";
+	const setextMatch = body.match(/^[^\n]+\n=+\n+(.+)$/s);
+	if (setextMatch) return setextMatch[1].trim();
+	const atxMatch = body.match(/^#\s+[^\n]+\n+(.+)$/s);
+	if (atxMatch) return atxMatch[1].trim();
+	return body.trim();
 }
 
 //#endregion
