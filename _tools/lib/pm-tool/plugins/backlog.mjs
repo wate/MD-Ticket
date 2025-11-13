@@ -41,7 +41,7 @@ function formatMessage(level, message, data) {
 * @param {Object} [data] - 追加データ
 */
 function debug(message, data) {
-	if (currentLogLevel <= LOG_LEVELS.DEBUG) console.debug(formatMessage("DEBUG", message, data));
+	if (currentLogLevel <= LOG_LEVELS.DEBUG) console.error(formatMessage("DEBUG", message, data));
 }
 /**
 * INFOレベルのログを出力する
@@ -50,7 +50,7 @@ function debug(message, data) {
 * @param {Object} [data] - 追加データ
 */
 function info(message, data) {
-	if (currentLogLevel <= LOG_LEVELS.INFO) console.info(formatMessage("INFO", message, data));
+	if (currentLogLevel <= LOG_LEVELS.INFO) console.error(formatMessage("INFO", message, data));
 }
 /**
 * WARNレベルのログを出力する
@@ -444,6 +444,14 @@ var backlog_default = {
 	},
 	extractTicketId(frontmatter) {
 		return frontmatter.backlog_key || null;
+	},
+	parseUrl(url) {
+		try {
+			const match = new URL(url).pathname.match(/\/view\/([A-Z]+-\d+)/);
+			return match ? match[1] : null;
+		} catch (error) {
+			return null;
+		}
 	},
 	getUpdateOptions() {
 		return [

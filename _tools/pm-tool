@@ -113,7 +113,7 @@ function formatMessage(level, message, data) {
 * @param {Object} [data] - 追加データ
 */
 function debug(message, data) {
-	if (currentLogLevel <= LOG_LEVELS.DEBUG) console.debug(formatMessage("DEBUG", message, data));
+	if (currentLogLevel <= LOG_LEVELS.DEBUG) console.error(formatMessage("DEBUG", message, data));
 }
 /**
 * INFOレベルのログを出力する
@@ -122,7 +122,7 @@ function debug(message, data) {
 * @param {Object} [data] - 追加データ
 */
 function info(message, data) {
-	if (currentLogLevel <= LOG_LEVELS.INFO) console.info(formatMessage("INFO", message, data));
+	if (currentLogLevel <= LOG_LEVELS.INFO) console.error(formatMessage("INFO", message, data));
 }
 /**
 * ERRORレベルのログを出力する
@@ -236,13 +236,15 @@ async function loadPlugin(toolName) {
 }
 /**
 * URLからチケット番号を抽出する
+* プラグインのparseUrlメソッドを使用してURL解析を行う
 *
 * @param {string} input - チケット番号またはURL
 * @param {string} configUrl - config.ymlで設定されたURL
+* @param {Object} plugin - プラグインオブジェクト
 * @returns {string} チケット番号
 * @throws {PmToolError} URL不一致またはチケット番号抽出失敗
 */
-function parseTicketIdFromUrl(input, configUrl) {
+function parseTicketIdFromUrl(input, configUrl, plugin) {
 	const inputStr = String(input);
 	if (!inputStr.startsWith("http://") && !inputStr.startsWith("https://")) return inputStr;
 	try {
@@ -252,9 +254,11 @@ function parseTicketIdFromUrl(input, configUrl) {
 			configUrl,
 			inputUrl: inputStr
 		});
-		const match = inputUrl.pathname.match(/\/issues\/(\d+)/);
-		if (!match) throw new PmToolError(`URLからチケット番号を抽出できませんでした: ${inputStr}`, "INVALID_URL_FORMAT", { url: inputStr });
-		return match[1];
+		if (plugin && typeof plugin.parseUrl === "function") {
+			const ticketId = plugin.parseUrl(inputStr);
+			if (ticketId) return ticketId;
+		}
+		throw new PmToolError(`URLからチケット番号を抽出できませんでした: ${inputStr}`, "INVALID_URL_FORMAT", { url: inputStr });
 	} catch (error$1) {
 		if (error$1 instanceof PmToolError) throw error$1;
 		throw new PmToolError(`不正なURL形式です: ${inputStr}`, "INVALID_URL", {
@@ -292,30 +296,31 @@ ${body}
 async function executeFetch(ticketIdOrUrl, options = {}) {
 	if (!ticketIdOrUrl) throw new PmToolError("チケット番号またはURLを指定してください", "INVALID_ARGUMENT");
 	const { tool, config, pmToolConfig } = getPmToolConfig();
-	const ticketId = parseTicketIdFromUrl(ticketIdOrUrl, config.url);
-	info(`チケット ${ticketId} の情報を取得します...`);
 	const plugin = await loadPlugin(tool);
+	const ticketId = parseTicketIdFromUrl(ticketIdOrUrl, config.url, plugin);
+	info(`チケット ${ticketId} の情報を取得します...`);
 	const result = await plugin.fetch(config, ticketId, options);
 	info("チケット情報の取得に成功しました");
-	if (options.stdout) {
-		if (options.json) console.log(JSON.stringify(result, null, 2));
-		else {
-			const markdown$1 = formatMarkdown(result);
-			console.log(markdown$1);
+	if (options.json) {
+		if (options.dir) {
+			const outputDir$1 = options.dir;
+			const filename$1 = `${options.prefix || pmToolConfig.file_prefix || plugin.defaults?.file_prefix || ""}${ticketId}.json`;
+			const filepath$1 = path.resolve(outputDir$1, filename$1);
+			fs.mkdirSync(path.dirname(filepath$1), { recursive: true });
+			fs.writeFileSync(filepath$1, JSON.stringify(result, null, 2), "utf8");
+			info(`JSONファイルを保存しました: ${filepath$1}`);
+			return result;
 		}
+		console.log(JSON.stringify(result, null, 2));
+		return result;
+	}
+	if (options.stdout) {
+		const markdown$1 = formatMarkdown(result);
+		console.log(markdown$1);
 		return result;
 	}
 	const outputDir = options.dir || pmToolConfig.output_dir || ".";
-	const prefix = options.prefix || pmToolConfig.file_prefix || plugin.defaults?.file_prefix || "";
-	if (options.json) {
-		const filename$1 = `${prefix}${ticketId}.json`;
-		const filepath$1 = path.resolve(outputDir, filename$1);
-		fs.mkdirSync(path.dirname(filepath$1), { recursive: true });
-		fs.writeFileSync(filepath$1, JSON.stringify(result, null, 2), "utf8");
-		info(`JSONファイルを保存しました: ${filepath$1}`);
-		return result;
-	}
-	const filename = `${prefix}${ticketId}.md`;
+	const filename = `${options.prefix || pmToolConfig.file_prefix || plugin.defaults?.file_prefix || ""}${ticketId}.md`;
 	const filepath = path.resolve(outputDir, filename);
 	const markdown = formatMarkdown(result);
 	fs.mkdirSync(path.dirname(filepath), { recursive: true });

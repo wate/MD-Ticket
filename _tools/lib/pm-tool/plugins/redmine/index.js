@@ -55,6 +55,23 @@ export default {
     },
 
     /**
+     * URLからチケットIDを抽出する
+     *
+     * @param {string} url - Redmine URL
+     * @returns {string|null} チケットID、抽出できない場合はnull
+     */
+    parseUrl(url) {
+        try {
+            const urlObj = new URL(url);
+            // Redmine形式: /issues/123 または /issues/123.json
+            const match = urlObj.pathname.match(/\/issues\/(\d+)/);
+            return match ? match[1] : null;
+        } catch (error) {
+            return null;
+        }
+    },
+
+    /**
      * 更新時に使用可能なオプションを返す
      *
      * @returns {Array<Object>} オプション一覧

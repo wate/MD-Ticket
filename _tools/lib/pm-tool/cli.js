@@ -100,13 +100,15 @@ async function loadPlugin(toolName) {
 
 /**
  * URLからチケット番号を抽出する
+ * プラグインのparseUrlメソッドを使用してURL解析を行う
  *
  * @param {string} input - チケット番号またはURL
  * @param {string} configUrl - config.ymlで設定されたURL
+ * @param {Object} plugin - プラグインオブジェクト
  * @returns {string} チケット番号
  * @throws {PmToolError} URL不一致またはチケット番号抽出失敗
  */
-function parseTicketIdFromUrl(input, configUrl) {
+function parseTicketIdFromUrl(input, configUrl, plugin) {
     // 文字列に変換（数値が渡された場合に備えて）
     const inputStr = String(input);
 
@@ -130,17 +132,19 @@ function parseTicketIdFromUrl(input, configUrl) {
             );
         }
 
-        // パスからチケット番号を抽出（Redmine形式: /issues/123 または /issues/123.json）
-        const match = inputUrl.pathname.match(/\/issues\/(\d+)/);
-        if (!match) {
-            throw new PmToolError(
-                `URLからチケット番号を抽出できませんでした: ${inputStr}`,
-                'INVALID_URL_FORMAT',
-                { url: inputStr }
-            );
+        // プラグインのparseUrlメソッドを使用してチケット番号を抽出
+        if (plugin && typeof plugin.parseUrl === 'function') {
+            const ticketId = plugin.parseUrl(inputStr);
+            if (ticketId) {
+                return ticketId;
+            }
         }
 
-        return match[1];
+        throw new PmToolError(
+            `URLからチケット番号を抽出できませんでした: ${inputStr}`,
+            'INVALID_URL_FORMAT',
+            { url: inputStr }
+        );
     } catch (error) {
         if (error instanceof PmToolError) {
             throw error;
@@ -192,52 +196,53 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
 
     const { tool, config, pmToolConfig } = getPmToolConfig();
 
+    // プラグインを先にロード（URL解析に必要）
+    const plugin = await loadPlugin(tool);
+
     // URLからチケット番号を抽出（URL形式でない場合はそのまま使用）
-    const ticketId = parseTicketIdFromUrl(ticketIdOrUrl, config.url);
+    const ticketId = parseTicketIdFromUrl(ticketIdOrUrl, config.url, plugin);
 
     info(`チケット ${ticketId} の情報を取得します...`);
-
-    const plugin = await loadPlugin(tool);
 
     // プラグインのfetchメソッドを呼び出し
     const result = await plugin.fetch(config, ticketId, options);
 
     info('チケット情報の取得に成功しました');
 
-    // 標準出力モード（ファイル保存なし）
-    if (options.stdout) {
-        if (options.json) {
-            // JSON形式で標準出力
-            console.log(JSON.stringify(result, null, 2));
-        } else {
-            // Markdown形式で標準出力
-            const markdown = formatMarkdown(result);
-            console.log(markdown);
+    // JSON形式の場合
+    if (options.json) {
+        // ディレクトリ指定がある場合のみファイル保存
+        if (options.dir) {
+            const outputDir = options.dir;
+            const prefix = options.prefix || pmToolConfig.file_prefix || plugin.defaults?.file_prefix || '';
+            const filename = `${prefix}${ticketId}.json`;
+            const filepath = path.resolve(outputDir, filename);
+            fs.mkdirSync(path.dirname(filepath), { recursive: true });
+            fs.writeFileSync(filepath, JSON.stringify(result, null, 2), 'utf8');
+            info(`JSONファイルを保存しました: ${filepath}`);
+            return result;
         }
+        // ディレクトリ指定なしの場合は標準出力
+        console.log(JSON.stringify(result, null, 2));
         return result;
     }
 
+    // 標準出力モード（Markdown形式）
+    if (options.stdout) {
+        const markdown = formatMarkdown(result);
+        console.log(markdown);
+        return result;
+    }
+
+    // Markdown形式でファイル保存（デフォルト）
     const outputDir = options.dir || pmToolConfig.output_dir || '.';
     const prefix = options.prefix || pmToolConfig.file_prefix || plugin.defaults?.file_prefix || '';
-
-    // JSON形式で保存
-    if (options.json) {
-        const filename = `${prefix}${ticketId}.json`;
-        const filepath = path.resolve(outputDir, filename);
-        fs.mkdirSync(path.dirname(filepath), { recursive: true });
-        fs.writeFileSync(filepath, JSON.stringify(result, null, 2), 'utf8');
-        info(`JSONファイルを保存しました: ${filepath}`);
-        return result;
-    }
-
-    // Markdown形式で保存(デフォルト)
     const filename = `${prefix}${ticketId}.md`;
     const filepath = path.resolve(outputDir, filename);
     const markdown = formatMarkdown(result);
     fs.mkdirSync(path.dirname(filepath), { recursive: true });
     fs.writeFileSync(filepath, markdown, 'utf8');
     info(`Markdownファイルを保存しました: ${filepath}`);
-
     return result;
 }
 
