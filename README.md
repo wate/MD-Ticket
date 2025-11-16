@@ -116,7 +116,7 @@ rm -rf MD-Ticket
    - 複数ファイルがある場合はサフィックスで区別  
      例: `add-feature-draft-requirements.md`, `add-feature-draft-design.md`  
    - チケット本文から相対パスでリンク  
-     例: `[ドラフト](_files/add-feature-draft.md)`  
+     例: `[ドラフト](../_files/add-feature-draft.md)`  
 7. Git管理 (任意)
    - Gitを利用すれば履歴追跡と復元が可能  
    - 個人プロジェクトなどの場合は非Gitでも運用可  
