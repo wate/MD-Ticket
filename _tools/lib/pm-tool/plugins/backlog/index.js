@@ -1,7 +1,7 @@
 #!/usr/bin/env zx
 
-import { fetchIssue } from './fetch.js';
-import { updateIssue } from './update.js';
+import { fetchIssue } from './issue/fetch.js';
+import { updateIssue } from './issue/update.js';
 import { debug } from '../../common/logger.js';
 
 /**
@@ -22,8 +22,8 @@ export default {
      * @param {Object} options - オプション
      * @returns {Promise<Object>} 課題情報
      */
-    async fetch(config, issueKey, options = {}) {
-        debug('Backlogプラグイン: fetch', { issueKey });
+    async issueFetch(config, issueKey, options = {}) {
+        debug('Backlogプラグイン: issueFetch', { issueKey });
         return await fetchIssue(config, issueKey, options);
     },
 
@@ -35,8 +35,8 @@ export default {
      * @param {Object} updateData - 更新データ
      * @returns {Promise<Object>} 更新結果
      */
-    async update(config, issueKey, updateData = {}) {
-        debug('Backlogプラグイン: update', { issueKey });
+    async issueUpdate(config, issueKey, updateData = {}) {
+        debug('Backlogプラグイン: issueUpdate', { issueKey });
         return await updateIssue(config, issueKey, updateData);
     },
 
@@ -72,7 +72,7 @@ export default {
      *
      * @returns {Array<Object>} オプション一覧
      */
-    getUpdateOptions() {
+    getIssueUpdateOptions() {
         // 現時点ではissue/updateのみ対応。
         return [
             { name: 'start-date', description: '開始日(YYYY-MM-DD)', type: 'string' },

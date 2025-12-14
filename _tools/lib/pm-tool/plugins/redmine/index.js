@@ -1,7 +1,7 @@
 #!/usr/bin/env zx
 
-import { fetchTicket } from './fetch.js';
-import { updateTicket } from './update.js';
+import { fetchTicket } from './issue/fetch.js';
+import { updateTicket } from './issue/update.js';
 import { debug } from '../../common/logger.js';
 
 /**
@@ -26,8 +26,8 @@ export default {
      * @param {Object} options - オプション
      * @returns {Promise<Object>} チケット情報
      */
-    async fetch(config, ticketId, options = {}) {
-        debug('Redmineプラグイン: fetch', { ticketId });
+    async issueFetch(config, ticketId, options = {}) {
+        debug('Redmineプラグイン: issueFetch', { ticketId });
         return await fetchTicket(config, ticketId, options);
     },
 
@@ -39,8 +39,8 @@ export default {
      * @param {Object} updateData - 更新データ
      * @returns {Promise<Object>} 更新結果
      */
-    async update(config, ticketId, updateData = {}) {
-        debug('Redmineプラグイン: update', { ticketId });
+    async issueUpdate(config, ticketId, updateData = {}) {
+        debug('Redmineプラグイン: issueUpdate', { ticketId });
         return await updateTicket(config, ticketId, updateData);
     },
 
@@ -76,7 +76,7 @@ export default {
      *
      * @returns {Array<Object>} オプション一覧
      */
-    getUpdateOptions() {
+    getIssueUpdateOptions() {
         // 現時点ではissue/updateのみ対応。
         return [
             { name: 'comment', description: 'コメント', type: 'string' },

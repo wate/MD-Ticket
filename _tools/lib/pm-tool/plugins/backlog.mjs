@@ -159,7 +159,7 @@ async function retry(fn, options = {}) {
 }
 
 //#endregion
-//#region _tools/lib/pm-tool/plugins/backlog/fetch.js
+//#region _tools/lib/pm-tool/plugins/backlog/issue/fetch.js
 /**
 * Backlog課題情報を取得する
 *
@@ -259,7 +259,7 @@ function formatAsYamlFrontmatter(issue) {
 }
 
 //#endregion
-//#region _tools/lib/pm-tool/plugins/backlog/update.js
+//#region _tools/lib/pm-tool/plugins/backlog/issue/update.js
 /**
 * Backlog課題情報を更新する
 *
@@ -434,12 +434,12 @@ var backlog_default = {
 	name: "backlog",
 	label: "Backlog",
 	defaults: { file_prefix: "" },
-	async fetch(config, issueKey, options = {}) {
-		debug("Backlogプラグイン: fetch", { issueKey });
+	async issueFetch(config, issueKey, options = {}) {
+		debug("Backlogプラグイン: issueFetch", { issueKey });
 		return await fetchIssue(config, issueKey, options);
 	},
-	async update(config, issueKey, updateData = {}) {
-		debug("Backlogプラグイン: update", { issueKey });
+	async issueUpdate(config, issueKey, updateData = {}) {
+		debug("Backlogプラグイン: issueUpdate", { issueKey });
 		return await updateIssue(config, issueKey, updateData);
 	},
 	extractTicketId(frontmatter) {
@@ -453,7 +453,7 @@ var backlog_default = {
 			return null;
 		}
 	},
-	getUpdateOptions() {
+	getIssueUpdateOptions() {
 		return [
 			{
 				name: "start-date",

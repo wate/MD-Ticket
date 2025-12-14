@@ -182,8 +182,8 @@ issue fetchコマンド用オプション:
 環境変数:
   PM_TOOL_LOG_LEVEL                    ログレベル (DEBUG, INFO, WARN, ERROR)
                                        デフォルト: INFO`;
-	if (plugin && typeof plugin.getUpdateOptions === "function") {
-		const options = plugin.getUpdateOptions();
+	if (plugin && typeof plugin.getIssueUpdateOptions === "function") {
+		const options = plugin.getIssueUpdateOptions();
 		if (options && options.length > 0) {
 			usageText += `\n\n${plugin.label}固有の更新オプション:`;
 			for (const opt of options) {
@@ -299,7 +299,8 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
 	const plugin = await loadPlugin(tool);
 	const ticketId = parseTicketIdFromUrl(ticketIdOrUrl, config.url, plugin);
 	info(`チケット ${ticketId} の情報を取得します...`);
-	const result = await plugin.fetch(config, ticketId, options);
+	if (typeof plugin.issueFetch !== "function") throw new PmToolError("プラグインがissueFetchに対応していません", "PLUGIN_NOT_SUPPORTED");
+	const result = await plugin.issueFetch(config, ticketId, options);
 	info("チケット情報の取得に成功しました");
 	if (options.json) {
 		if (options.dir) {
@@ -334,7 +335,7 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
 * @param {string} filePath - チケットファイルパス
 * @param {Object} options - オプション
 */
-async function executeUpdate(filePath, options = {}) {
+async function executeIssueUpdate(filePath, options = {}) {
 	if (!filePath) throw new PmToolError("チケットファイルパスを指定してください", "INVALID_ARGUMENT");
 	if (!fs.existsSync(filePath)) throw new PmToolError(`ファイルが見つかりません: ${filePath}`, "FILE_NOT_FOUND");
 	const { tool, config } = getPmToolConfig();
@@ -352,7 +353,8 @@ async function executeUpdate(filePath, options = {}) {
 		body: bodyContent,
 		ticketId
 	};
-	const result = await plugin.update(config, ticketId, updateData);
+	if (typeof plugin.issueUpdate !== "function") throw new PmToolError("プラグインがissueUpdateに対応していません", "PLUGIN_NOT_SUPPORTED");
+	const result = await plugin.issueUpdate(config, ticketId, updateData);
 	info("チケットの更新に成功しました");
 	console.log(JSON.stringify(result, null, 2));
 	return result;
@@ -374,8 +376,8 @@ function parseArgs(args, plugin = null) {
 		"stdout",
 		"json"
 	];
-	if (plugin && typeof plugin.getUpdateOptions === "function") {
-		const updateOptions = plugin.getUpdateOptions();
+	if (plugin && typeof plugin.getIssueUpdateOptions === "function") {
+		const updateOptions = plugin.getIssueUpdateOptions();
 		for (const opt of updateOptions) if (opt.type === "string") stringOptions.push(opt.name);
 		else if (opt.type === "number") stringOptions.push(opt.name);
 	}
@@ -448,7 +450,7 @@ async function main() {
 					break;
 				}
 				if (action === "update") {
-					await executeUpdate(target, options);
+					await executeIssueUpdate(target, options);
 					break;
 				}
 				console.error(`エラー: 不明なアクション "${action}" (issue)`);
@@ -458,7 +460,7 @@ async function main() {
 				await executeFetch(action, options);
 				break;
 			case "update":
-				await executeUpdate(action, options);
+				await executeIssueUpdate(action, options);
 				break;
 			default:
 				console.error(`エラー: 不明なサブコマンド "${subcommand}"`);

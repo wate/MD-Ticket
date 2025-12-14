@@ -1,8 +1,8 @@
 #!/usr/bin/env zx
 
-import { info, debug, warn } from '../../common/logger.js';
-import { ValidationError, ApiError, AuthenticationError, NetworkError } from '../../common/error.js';
-import { retry } from '../../common/retry.js';
+import { info, debug, warn } from '../../../common/logger.js';
+import { ValidationError, ApiError, AuthenticationError, NetworkError } from '../../../common/error.js';
+import { retry } from '../../../common/retry.js';
 
 /**
  * Backlog課題情報を更新する

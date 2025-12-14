@@ -35,8 +35,8 @@ issue fetchコマンド用オプション:
                                        デフォルト: INFO`;
 
     // プラグイン固有のオプションを追加
-    if (plugin && typeof plugin.getUpdateOptions === 'function') {
-        const options = plugin.getUpdateOptions();
+    if (plugin && typeof plugin.getIssueUpdateOptions === 'function') {
+        const options = plugin.getIssueUpdateOptions();
         if (options && options.length > 0) {
             usageText += `\n\n${plugin.label}固有の更新オプション:`;
             for (const opt of options) {
@@ -204,8 +204,11 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
 
     info(`チケット ${ticketId} の情報を取得します...`);
 
-    // プラグインのfetchメソッドを呼び出し
-    const result = await plugin.fetch(config, ticketId, options);
+    if (typeof plugin.issueFetch !== 'function') {
+        throw new PmToolError('プラグインがissueFetchに対応していません', 'PLUGIN_NOT_SUPPORTED');
+    }
+
+    const result = await plugin.issueFetch(config, ticketId, options);
 
     info('チケット情報の取得に成功しました');
 
@@ -252,7 +255,7 @@ async function executeFetch(ticketIdOrUrl, options = {}) {
  * @param {string} filePath - チケットファイルパス
  * @param {Object} options - オプション
  */
-async function executeUpdate(filePath, options = {}) {
+async function executeIssueUpdate(filePath, options = {}) {
     if (!filePath) {
         throw new PmToolError('チケットファイルパスを指定してください', 'INVALID_ARGUMENT');
     }
@@ -302,8 +305,11 @@ async function executeUpdate(filePath, options = {}) {
         ticketId // チケットID
     };
 
-    // プラグインのupdateメソッドを呼び出し（フィールド抽出はプラグイン側で実施）
-    const result = await plugin.update(config, ticketId, updateData);
+    if (typeof plugin.issueUpdate !== 'function') {
+        throw new PmToolError('プラグインがissueUpdateに対応していません', 'PLUGIN_NOT_SUPPORTED');
+    }
+
+    const result = await plugin.issueUpdate(config, ticketId, updateData);
 
     info('チケットの更新に成功しました');
     console.log(JSON.stringify(result, null, 2));
@@ -324,8 +330,8 @@ function parseArgs(args, plugin = null) {
     const stringOptions = ['dir', 'prefix']; // 共通オプション
     const booleanOptions = ['help', 'version', 'dry-run', 'stdout', 'json']; // 共通オプション
 
-    if (plugin && typeof plugin.getUpdateOptions === 'function') {
-        const updateOptions = plugin.getUpdateOptions();
+    if (plugin && typeof plugin.getIssueUpdateOptions === 'function') {
+        const updateOptions = plugin.getIssueUpdateOptions();
         for (const opt of updateOptions) {
             if (opt.type === 'string') {
                 stringOptions.push(opt.name);
@@ -440,7 +446,7 @@ async function main() {
                     break;
                 }
                 if (action === 'update') {
-                    await executeUpdate(target, options);
+                    await executeIssueUpdate(target, options);
                     break;
                 }
                 console.error(`エラー: 不明なアクション "${action}" (issue)`);
@@ -452,7 +458,7 @@ async function main() {
                 await executeFetch(action, options);
                 break;
             case 'update':
-                await executeUpdate(action, options);
+                await executeIssueUpdate(action, options);
                 break;
 
             // note/wiki は未実装のため受付しない

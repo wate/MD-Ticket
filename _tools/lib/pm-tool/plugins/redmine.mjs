@@ -320,7 +320,7 @@ async function put(url, body, headers = {}, retryOptions = {}) {
 }
 
 //#endregion
-//#region _tools/lib/pm-tool/plugins/redmine/fetch.js
+//#region _tools/lib/pm-tool/plugins/redmine/issue/fetch.js
 /**
 * Redmineチケット情報を取得する
 *
@@ -419,7 +419,7 @@ function removeUndefinedFields(obj) {
 }
 
 //#endregion
-//#region _tools/lib/pm-tool/plugins/redmine/update.js
+//#region _tools/lib/pm-tool/plugins/redmine/issue/update.js
 /**
 * Redmineチケット情報を更新する
 *
@@ -548,12 +548,12 @@ var redmine_default = {
 	name: "redmine",
 	label: "Redmine",
 	defaults: { file_prefix: "ticket-" },
-	async fetch(config, ticketId, options = {}) {
-		debug("Redmineプラグイン: fetch", { ticketId });
+	async issueFetch(config, ticketId, options = {}) {
+		debug("Redmineプラグイン: issueFetch", { ticketId });
 		return await fetchTicket(config, ticketId, options);
 	},
-	async update(config, ticketId, updateData = {}) {
-		debug("Redmineプラグイン: update", { ticketId });
+	async issueUpdate(config, ticketId, updateData = {}) {
+		debug("Redmineプラグイン: issueUpdate", { ticketId });
 		return await updateTicket(config, ticketId, updateData);
 	},
 	extractTicketId(frontmatter) {
@@ -567,7 +567,7 @@ var redmine_default = {
 			return null;
 		}
 	},
-	getUpdateOptions() {
+	getIssueUpdateOptions() {
 		return [
 			{
 				name: "comment",

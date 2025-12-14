@@ -1,8 +1,8 @@
 #!/usr/bin/env zx
 
-import { put, createBasicAuthHeader } from '../../common/api.js';
-import { info, debug } from '../../common/logger.js';
-import { ValidationError, ApiError } from '../../common/error.js';
+import { put, createBasicAuthHeader } from '../../../common/api.js';
+import { info, debug } from '../../../common/logger.js';
+import { ValidationError, ApiError } from '../../../common/error.js';
 
 /**
  * Redmineチケット情報を更新する
