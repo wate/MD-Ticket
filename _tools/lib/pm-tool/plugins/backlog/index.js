@@ -73,6 +73,7 @@ export default {
      * @returns {Array<Object>} オプション一覧
      */
     getUpdateOptions() {
+        // 現時点ではissue/updateのみ対応。
         return [
             { name: 'start-date', description: '開始日(YYYY-MM-DD)', type: 'string' },
             { name: 'due-date', description: '期限日(YYYY-MM-DD)', type: 'string' },

@@ -77,6 +77,7 @@ export default {
      * @returns {Array<Object>} オプション一覧
      */
     getUpdateOptions() {
+        // 現時点ではissue/updateのみ対応。
         return [
             { name: 'comment', description: 'コメント', type: 'string' },
             { name: 'status', description: 'ステータスID', type: 'number' },

@@ -164,16 +164,16 @@ var PmToolError = class extends Error {
 function showUsage(plugin = null) {
 	let usageText = `
 使用方法:
-  pm-tool fetch <チケット番号>        チケット情報を取得する
-  pm-tool update <ファイルパス>       チケット情報を更新する
-  pm-tool help                         ヘルプを表示する
+    pm-tool issue fetch <チケット番号>  チケット情報を取得する
+    pm-tool issue update <ファイルパス> チケット情報を更新する
+    pm-tool help                         ヘルプを表示する
 
 オプション:
   --help, -h                           ヘルプを表示する
   --version, -v                        バージョンを表示する
   --dry-run                            実際の更新を行わず、ペイロードのみ表示する
 
-fetchコマンド用オプション:
+issue fetchコマンド用オプション:
   --stdout                             ファイル保存せず標準出力に表示する
   --json                               JSON形式で保存/出力する
   --dir <ディレクトリ>                 出力ディレクトリを指定する
@@ -195,18 +195,18 @@ fetchコマンド用オプション:
 	usageText += `
 
 例:
-  pm-tool fetch 1234
-  pm-tool fetch 1234 --stdout
-  pm-tool fetch 1234 --json --dir ./output
-  pm-tool update ticket-1234.md
-  pm-tool update ticket-1234.md --dry-run`;
+    pm-tool issue fetch 1234
+    pm-tool issue fetch 1234 --stdout
+    pm-tool issue fetch 1234 --json --dir ./output
+    pm-tool issue update ticket-1234.md
+    pm-tool issue update ticket-1234.md --dry-run`;
 	if (plugin) {
 		if (plugin.name === "redmine") usageText += `
-  pm-tool fetch https://redmine.example.com/issues/1234
-  pm-tool update ticket-1234.md --comment "実装完了"`;
+      pm-tool issue fetch https://redmine.example.com/issues/1234
+      pm-tool issue update ticket-1234.md --comment "実装完了"`;
 		else if (plugin.name === "backlog") usageText += `
-  pm-tool fetch PROJ-123
-  pm-tool update task/PROJ-123.md --start-date 2025-11-01`;
+      pm-tool issue fetch PROJ-123
+      pm-tool issue update task/PROJ-123.md --start-date 2025-11-01`;
 	}
 	console.log(usageText.trim());
 }
@@ -398,12 +398,14 @@ function parseArgs(args, plugin = null) {
 		ticketId: null,
 		options: {}
 	};
-	const command = positional[0] || null;
-	const ticketId = positional[1] || null;
+	const subcommand = positional[0] || null;
+	const action = positional[1] || null;
+	const target = positional[2] || null;
 	const { _, help, version, h, v,...options } = parsed;
 	return {
-		command,
-		ticketId,
+		subcommand,
+		action,
+		target,
 		options
 	};
 }
@@ -415,20 +417,20 @@ async function main() {
 		let args = process.argv.slice(2);
 		if (args.length > 0 && (args[0].endsWith("/pm-tool") || args[0].includes("pm-tool"))) args = args.slice(1);
 		const basicParsed = parseArgs(args);
-		const { command, ticketId } = basicParsed;
+		const { subcommand, action, target } = basicParsed;
 		let { options } = basicParsed;
-		if (!command) {
+		if (!subcommand) {
 			showUsage();
 			process.exit(1);
 		}
-		if (command === "update") try {
+		if (subcommand === "issue" && action === "update") try {
 			const { tool } = getPmToolConfig();
 			const plugin = await loadPlugin(tool);
 			options = parseArgs(args, plugin).options;
 		} catch (error$1) {
 			debug("プラグインロードに失敗したため、基本パース結果を使用します", error$1);
 		}
-		switch (command) {
+		switch (subcommand) {
 			case "help":
 				try {
 					const { tool } = getPmToolConfig();
@@ -440,14 +442,26 @@ async function main() {
 			case "version":
 				showVersion();
 				break;
+			case "issue":
+				if (action === "fetch") {
+					await executeFetch(target, options);
+					break;
+				}
+				if (action === "update") {
+					await executeUpdate(target, options);
+					break;
+				}
+				console.error(`エラー: 不明なアクション "${action}" (issue)`);
+				showUsage();
+				process.exit(1);
 			case "fetch":
-				await executeFetch(ticketId, options);
+				await executeFetch(action, options);
 				break;
 			case "update":
-				await executeUpdate(ticketId, options);
+				await executeUpdate(action, options);
 				break;
 			default:
-				console.error(`エラー: 不明なコマンド "${command}"`);
+				console.error(`エラー: 不明なサブコマンド "${subcommand}"`);
 				showUsage();
 				process.exit(1);
 		}
