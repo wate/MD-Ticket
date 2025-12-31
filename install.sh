@@ -167,7 +167,7 @@ fi
 # ディレクトリ構造作成
 if [ "$FORCE_INSTALL" = false ]; then
     info "Creating directory structure..."
-    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_files,_archive/_files,_tools/lib/pm-tool/plugins,bug,idea,request,task}
+    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_shared/prd,_files,_archive/_files,_tools/lib/pm-tool/plugins,bug,idea,request,task}
 
     # .gitkeep作成
     touch "$TICKET_DIR/_archive/.gitkeep"
@@ -175,13 +175,14 @@ if [ "$FORCE_INSTALL" = false ]; then
     touch "$TICKET_DIR/_files/.gitkeep"
     touch "$TICKET_DIR/_shared/.gitkeep"
     touch "$TICKET_DIR/_shared/adr/.gitkeep"
+    touch "$TICKET_DIR/_shared/prd/.gitkeep"
     touch "$TICKET_DIR/bug/.gitkeep"
     touch "$TICKET_DIR/idea/.gitkeep"
     touch "$TICKET_DIR/request/.gitkeep"
     touch "$TICKET_DIR/task/.gitkeep"
 else
     info "Ensuring directory structure..."
-    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_files,_archive/_files,_tools/lib/pm-tool/plugins,bug,idea,request,task}
+    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_shared/prd,_files,_archive/_files,_tools/lib/pm-tool/plugins,bug,idea,request,task}
 fi
 
 # ファイルダウンロード

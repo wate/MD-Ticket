@@ -69,7 +69,8 @@ rm -rf MD-Ticket
   │  └ _files/        => アーカイブ済みチケットの参考資料を格納するディレクトリ
   ├ _files/        => チケットに関連する参考資料を格納するディレクトリ
   ├ _shared/       => チケット文脈で参照される情報やADRなどの共有リソースを格納するディレクトリ
-  │  └ adr/           => ADR(Architecture Decision Record)を格納するサブディレクトリ
+  │  ├ adr/           => ADR(Architecture Decision Record)を格納するサブディレクトリ
+  │  └ prd/           => PRD(Product Requirements Document)を格納するサブディレクトリ
   ├ _template/     => 各ファイルのテンプレートを格納するディレクトリ
   │  ├ adr.md         => ADR(Architecture Decision Record)のテンプレートファイル
   │  ├ bug.md         => 不具合報告のテンプレートファイル
