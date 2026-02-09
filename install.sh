@@ -167,7 +167,7 @@ fi
 # ディレクトリ構造作成
 if [ "$FORCE_INSTALL" = false ]; then
     info "Creating directory structure..."
-    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_shared/prd,_files,_archive/_files,_tools/lib/pm-tool/plugins,bug,idea,request,task}
+    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_shared/prd,_files,_archive/_files,bug,idea,request,task}
 
     # .gitkeep作成
     touch "$TICKET_DIR/_archive/.gitkeep"
@@ -182,7 +182,7 @@ if [ "$FORCE_INSTALL" = false ]; then
     touch "$TICKET_DIR/task/.gitkeep"
 else
     info "Ensuring directory structure..."
-    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_shared/prd,_files,_archive/_files,_tools/lib/pm-tool/plugins,bug,idea,request,task}
+    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_shared/prd,_files,_archive/_files,bug,idea,request,task}
 fi
 
 # ファイルダウンロード
@@ -207,17 +207,11 @@ download_file "_template/idea.md" "$TICKET_DIR/_template/idea.md"
 download_file "_template/request.md" "$TICKET_DIR/_template/request.md"
 download_file "_template/task.md" "$TICKET_DIR/_template/task.md"
 download_file "_template/adr.md" "$TICKET_DIR/_template/adr.md"
+download_file "_template/prd.md" "$TICKET_DIR/_template/prd.md"
 
 # 設定ファイル(オプション)
 info "Downloading optional config file..."
 $DOWNLOAD_CMD "$RAW_URL/config.yml" > "$TICKET_DIR/config.yml" 2>/dev/null || warn "config.yml not found (optional)"
-
-# pm-toolファイル
-info "Downloading pm-tool files..."
-download_file "_tools/pm-tool" "$TICKET_DIR/_tools/pm-tool"
-chmod +x "$TICKET_DIR/_tools/pm-tool"
-download_file "_tools/lib/pm-tool/plugins/redmine.mjs" "$TICKET_DIR/_tools/lib/pm-tool/plugins/redmine.mjs"
-download_file "_tools/lib/pm-tool/plugins/backlog.mjs" "$TICKET_DIR/_tools/lib/pm-tool/plugins/backlog.mjs"
 
 if [ "$FORCE_INSTALL" = true ]; then
     success "MD-Ticket has been updated in '$TICKET_DIR'!"
