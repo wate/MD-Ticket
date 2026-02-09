@@ -69,7 +69,8 @@ rm -rf MD-Ticket
   │  └ _files/        => アーカイブ済みチケットの参考資料を格納するディレクトリ
   ├ _files/        => チケットに関連する参考資料を格納するディレクトリ
   ├ _shared/       => チケット文脈で参照される情報やADRなどの共有リソースを格納するディレクトリ
-  │  └ adr/           => ADR(Architecture Decision Record)を格納するサブディレクトリ
+  │  ├ adr/           => ADR(Architecture Decision Record)を格納するサブディレクトリ
+  │  └ prd/           => PRD(Product Requirements Document)を格納するサブディレクトリ
   ├ _template/     => 各ファイルのテンプレートを格納するディレクトリ
   │  ├ adr.md         => ADR(Architecture Decision Record)のテンプレートファイル
   │  ├ bug.md         => 不具合報告のテンプレートファイル
@@ -141,26 +142,6 @@ rm -rf MD-Ticket
 設定ファイルがない場合はデフォルトの4種別(bug/task/idea/request)が使用されます。
 
 詳細な設定方法やカスタム種別の追加例は[AGENTS.md](AGENTS.md)を参照してください。
-
-外部連携
--------------------------
-
-MD-Ticketはプロジェクト管理ツール(Redmine、Backlogなど)とのハイブリッド運用に対応しています。
-
-### 対応プロジェクト管理ツール
-
-- Redmine
-- Backlog
-
-### 主な機能
-
-- 課題・チケット情報の取得(Markdownファイル化)
-- Markdownファイルからの課題・チケット更新
-- YAMLフロントマターによる構造化データ管理
-
-### 使い方
-
-詳細な設定方法と実践例は[USAGE.md](USAGE.md)の「プロジェクト管理ツール連携」セクションを参照してください。
 
 AGENTS.md統合ガイド
 -------------------------
