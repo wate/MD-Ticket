@@ -1,4 +1,4 @@
-{プロダクト名・機能名}
+{Product Requirements Document(製品要求仕様書)のタイトル}
 =========================
 
 概要
@@ -80,9 +80,9 @@
 <!--
 このPRDに関連するドキュメント、デザイン、プロトタイプなど
 例：
-- [ユーザーリサーチ結果](../_files/prd-research.md)
-- [デザイン仕様](docs/design.md)
-- [技術検討](../_shared/adr/technology-selection.md)
+- ユーザーリサーチ結果: ../_files/prd-research.md
+- デザイン仕様: docs/design.md
+- 技術検討: ../_shared/adr/technology-selection.md
 -->
 
 ### 関連チケット
