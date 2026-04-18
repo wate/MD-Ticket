@@ -167,7 +167,7 @@ fi
 # ディレクトリ構造作成
 if [ "$FORCE_INSTALL" = false ]; then
     info "Creating directory structure..."
-    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_shared/prd,_files,_archive/_files,bug,idea,request,task}
+    mkdir -p "$TICKET_DIR"/{_guide,_template,_shared/adr,_shared/prd,_files,_archive/_files,bug,idea,request,task}
 
     # .gitkeep作成
     touch "$TICKET_DIR/_archive/.gitkeep"
@@ -182,7 +182,7 @@ if [ "$FORCE_INSTALL" = false ]; then
     touch "$TICKET_DIR/task/.gitkeep"
 else
     info "Ensuring directory structure..."
-    mkdir -p "$TICKET_DIR"/{_template,_shared/adr,_shared/prd,_files,_archive/_files,bug,idea,request,task}
+    mkdir -p "$TICKET_DIR"/{_guide,_template,_shared/adr,_shared/prd,_files,_archive/_files,bug,idea,request,task}
 fi
 
 # ファイルダウンロード
@@ -200,6 +200,11 @@ download_file "README.md" "$TICKET_DIR/README.md"
 download_file "AGENTS.md" "$TICKET_DIR/AGENTS.md"
 download_file "LICENSE" "$TICKET_DIR/LICENSE"
 download_file ".gitignore" "$TICKET_DIR/.gitignore"
+
+# ガイドファイル
+download_file "_guide/ticket-types.md" "$TICKET_DIR/_guide/ticket-types.md"
+download_file "_guide/ticket-lifecycle.md" "$TICKET_DIR/_guide/ticket-lifecycle.md"
+download_file "_guide/reference-files.md" "$TICKET_DIR/_guide/reference-files.md"
 
 # テンプレートファイル
 download_file "_template/bug.md" "$TICKET_DIR/_template/bug.md"
