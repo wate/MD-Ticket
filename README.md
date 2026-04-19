@@ -79,6 +79,10 @@ AIエージェントと連携する場合、プロジェクトルートの`AGENT
   ├ idea/         => アイデアファイルを格納するディレクトリ
   ├ request/      => 要望ファイルを格納するディレクトリ
   └ task/         => タスクファイルを格納するディレクトリ
+     ├ parent-ticket.md       => 親チケット
+     └ parent-ticket/         => 子チケット用サブディレクトリ(親と同名)
+        ├ child-a.md
+        └ child-b.md
 ```
 
 運用方法
@@ -102,13 +106,18 @@ AIエージェントと連携する場合、プロジェクトルートの`AGENT
    - 完了したチケットは基本的に削除する
    - 対応内容や参考資料を残したい場合はアーカイブに保存
    - アーカイブの詳細は[USAGE.md](USAGE.md)の「アーカイブ運用」を参照
-4. 関連管理
+4. 親子チケット
+   - 子チケットが必要な場合、親チケットと同名のサブディレクトリに配置  
+     例: `task/migrate-database/schema-update.md`
+   - 親チケットは種別ディレクトリに直接配置したまま  
+   - 参考資料は子チケットであっても`_files/`に配置(サブディレクトリには置かない)  
+5. 関連管理
    - 関連チケットは本文下部にMarkdownリンクで記載  
      例: `関連チケット: [task/add-feature.md](../task/add-feature.md)`
-5. ADR・共有情報
+6. ADR・共有情報
    - 重要な判断は `_shared/adr/` にADRとして記録  
    - 共通メモや用語集は `_shared/` に配置  
-6. 参考資料の管理
+7. 参考資料の管理
    - チケットに関連するファイル(ドラフト、スクリーンショット、参考資料等)は `_files/` に配置  
    - ファイル名は `{ticket-name}-{suffix}.{ext}` 形式を推奨  
      例: `add-feature-draft.md`, `fix-login-screenshot.png`  
@@ -116,7 +125,7 @@ AIエージェントと連携する場合、プロジェクトルートの`AGENT
      例: `add-feature-draft-requirements.md`, `add-feature-draft-design.md`  
    - チケット本文から相対パスでリンク  
      例: `[ドラフト](../_files/add-feature-draft.md)`  
-7. Git管理 (任意)
+8. Git管理 (任意)
    - Gitを利用すれば履歴追跡と復元が可能  
    - 個人プロジェクトなどの場合は非Gitでも運用可  
 

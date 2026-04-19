@@ -53,10 +53,67 @@ MD-Ticketのみで完結する運用方法です。
 - [設計図](../_files/add-feature-design.drawio)
 ```
 
-アーカイブ運用
+親子チケットの運用
 -------------------------
 
-### アーカイブの基本方針
+子チケットが必要になった場合、親チケットと同名のサブディレクトリを作成して子チケットを格納します。
+参考資料は子チケットであっても`_files/`で一元管理します。
+
+### ディレクトリ構造の例
+
+```
+.ticket/
+├ task/
+│   ├ migrate-database.md                     # 親チケット
+│   ├ migrate-database/                       # 子チケット用サブディレクトリ
+│   │   ├ schema-update.md
+│   │   ├ data-migration.md
+│   │   └ rollback-plan.md
+│   └ standalone-task.md                      # 独立チケット(従来通り)
+├ _files/
+│   ├ migrate-database-design.md              # 親チケットの参考資料
+│   └ standalone-task-draft.md
+```
+
+### 親チケットからのリンク
+
+親チケットの本文に子チケットへのリンクを記載します。
+
+```markdown
+## 子チケット
+
+- [スキーマ更新](migrate-database/schema-update.md)
+- [データ移行](migrate-database/data-migration.md)
+```
+
+### 子チケットからのリンク
+
+子チケットから親チケットへのリンクを記載します。
+
+```markdown
+## 親チケット
+
+- [DB移行](../migrate-database.md)
+```
+
+### 参考資料のリンク
+
+子チケットから`_files/`内の参考資料を参照する場合、相対パスは2階層上がります。
+
+```markdown
+## 参考資料
+
+- [設計メモ](../../_files/migrate-database-design.md)
+```
+
+### 適用基準
+
+- 子チケットが2つ以上ある場合にサブディレクトリ化を推奨します
+- 子チケットが1つの場合はフラット配置でも構いません
+- 既存チケットは新規作成時から段階的に適用します(一括移行は不要)
+
+アーカイブ運用
+-------------------------
 
 - 基本: チケット完了後は削除
 - 例外: 対応内容や参考資料を残したい場合のみアーカイブ
