@@ -197,6 +197,7 @@ download_file() {
 
 # メインファイル
 download_file "README.md" "$TICKET_DIR/README.md"
+download_file "USAGE.md" "$TICKET_DIR/USAGE.md"
 download_file "AGENTS.md" "$TICKET_DIR/AGENTS.md"
 download_file "LICENSE" "$TICKET_DIR/LICENSE"
 download_file ".gitignore" "$TICKET_DIR/.gitignore"
