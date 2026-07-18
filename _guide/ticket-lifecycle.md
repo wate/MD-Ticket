@@ -345,12 +345,12 @@ ADR・PRDと共有リソース
 
 ### PRDの作成と管理
 
-プロダクト・機能の要求仕様はPRD(Product Requirements Document)として`.ticket/_shared/`に記録します。
+プロダクト・機能の要求仕様はPRD(Product Requirements Document)として`.ticket/_shared/prd/`に記録します。
 テンプレートは`.ticket/_template/prd.md`を使用します。
 
 #### 命名規則
 
-`prd-brief-description.md`です(例: `prd-user-authentication.md`)。
+`brief-description.md`です(例: `user-authentication.md`)。
 
 ### `_shared/`と`docs/`の使い分け
 
