@@ -151,7 +151,7 @@ ADR・PRDと共有リソース
 -------------------------
 
 重要な技術判断はADRとして`.ticket/_shared/adr/`に記録します。
-プロダクト・機能の要求仕様はPRDとして`.ticket/_shared/`に記録します(テンプレート: `_template/prd.md`)。
+プロダクト・機能の要求仕様はPRDとして`.ticket/_shared/prd/`に記録します(テンプレート: `_template/prd.md`)。
 
 ### `_shared/`と`docs/`の使い分け
 
