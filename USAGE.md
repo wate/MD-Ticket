@@ -169,7 +169,7 @@ mv .ticket/_files/new-feature-* .ticket/_archive/_files/
 どちらも同じ相対パスで参照可能なため、リンクの書き換えは不要です。
 
 ADR(Architecture Decision Record)の活用
--------------------------
+---------------------------------------
 
 重要な技術的決定や設計判断は、ADRとして記録します。
 
