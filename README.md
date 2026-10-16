@@ -18,14 +18,18 @@ MD-Ticket
 ```bash
 # ワンライナーでインストール
 curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash
+```
 
+#### その他のインストール方法
+
+```bash
 # カスタムディレクトリにインストール
 TICKET_DIR=.custom curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash
 
 # または
 curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash -s -- --dir=.custom
 
-# 既存環境を最新版に更新(テンプレート・ドキュメントのみ上書き)
+# インストール済みのファイルを最新版に上書き更新(既存チケットは保持)
 curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash -s -- --force
 
 # developブランチからインストール
@@ -41,7 +45,7 @@ rm -rf MD-Ticket
 
 - `--dir=DIR` または `-d DIR`: インストール先ディレクトリ指定 (デフォルト: `.ticket`)
 - `--branch=BRANCH` または `-b BRANCH`: ダウンロード元ブランチ指定 (デフォルト: `master`)
-- `--force` または `-f`: 既存環境を上書き更新(既存チケットは保持)
+- `--force` または `-f`: インストール済みのファイルを最新版に上書き更新(既存チケットは保持)
 - `--help` または `-h`: ヘルプ表示
 
 #### 環境変数
@@ -99,7 +103,7 @@ AIエージェントと連携する場合、プロジェクトルートの`AGENT
         - バグ -> `bug/`
 2. 更新・整理
     - 追加情報があれば既存チケットを直接更新
-    - 状況に応じてディレクトリを移動(例: アイデア→タスク)  
+    - 状況に応じてディレクトリを移動(例: アイデア->タスク)  
       例: `mv request/add-feature.md task/add-feature.md`
     - 完了・不要になったチケットは削除または必要に応じてアーカイブ
 3. チケットのクローズ
