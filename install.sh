@@ -57,7 +57,7 @@ Usage:
 Options:
   -d, --dir=DIR       インストール先ディレクトリ (デフォルト: .ticket)
   -b, --branch=BRANCH ダウンロード元ブランチ (デフォルト: master)
-  -f, --force         既存ディレクトリを上書き更新（テンプレート・ドキュメントのみ）
+  -f, --force         インストール済みのファイルを上書き更新(既存チケットは保持)
   -h, --help          このヘルプを表示
 
 Environment Variables:
@@ -77,7 +77,7 @@ Examples:
   # developブランチからインストール
   curl -fsSL https://raw.githubusercontent.com/wate/MD-Ticket/master/install.sh | bash -s -- --branch=develop
 
-  # 既存環境を上書き更新(テンプレート等を最新に)
+  # インストール済みのファイルを最新版に上書き更新(既存チケットは保持)
   curl -fsSL ${RAW_URL}/install.sh | bash -s -- --force
 
 EOF
@@ -153,7 +153,7 @@ if [ -d "$TICKET_DIR" ]; then
         error "Directory '$TICKET_DIR' already exists. Use --force to update existing installation."
     fi
     warn "Force mode: Updating existing installation in '$TICKET_DIR'"
-    warn "Existing tickets will be preserved, but templates and documentation will be overwritten."
+    warn "Existing tickets will be preserved, but templates, documentation, and config.yml will be overwritten."
 fi
 
 # インストール開始
@@ -221,7 +221,7 @@ $DOWNLOAD_CMD "$RAW_URL/config.yml" > "$TICKET_DIR/config.yml" 2>/dev/null || wa
 
 if [ "$FORCE_INSTALL" = true ]; then
     success "MD-Ticket has been updated in '$TICKET_DIR'!"
-    info "Templates and documentation have been updated to the latest version."
+    info "Templates, documentation, and config.yml have been updated to the latest version."
     info "Your existing tickets have been preserved."
 else
     success "MD-Ticket has been installed to '$TICKET_DIR'!"
