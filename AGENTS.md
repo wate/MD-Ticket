@@ -165,3 +165,4 @@ ADR・PRDと共有リソース
 - [チケット種別の判断基準](_guide/ticket-types.md): 各種別の詳細な判断基準と迷うケースの対処
 - [チケットライフサイクル](_guide/ticket-lifecycle.md): 作成→管理→クローズ→アーカイブの手順詳細
 - [参考資料管理](_guide/reference-files.md): 参考資料の配置・命名・ライフサイクル管理
+- [課題管理ツール連携](_guide/issue-tracker-integration.md): 課題管理ツールとの取り込み・反映の取り決めと連携先ごとの差分

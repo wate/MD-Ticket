@@ -167,7 +167,7 @@ fi
 # ディレクトリ構造作成
 if [ "$FORCE_INSTALL" = false ]; then
     info "Creating directory structure..."
-    mkdir -p "$TICKET_DIR"/{_guide,_template,_shared/adr,_shared/prd,_files,_archive/_files,bug,idea,request,task}
+    mkdir -p "$TICKET_DIR"/{_guide,_guide/integrations,_template,_shared/adr,_shared/prd,_files,_archive/_files,bug,idea,request,task}
 
     # .gitkeep作成
     touch "$TICKET_DIR/_archive/.gitkeep"
@@ -182,7 +182,7 @@ if [ "$FORCE_INSTALL" = false ]; then
     touch "$TICKET_DIR/task/.gitkeep"
 else
     info "Ensuring directory structure..."
-    mkdir -p "$TICKET_DIR"/{_guide,_template,_shared/adr,_shared/prd,_files,_archive/_files,bug,idea,request,task}
+    mkdir -p "$TICKET_DIR"/{_guide,_guide/integrations,_template,_shared/adr,_shared/prd,_files,_archive/_files,bug,idea,request,task}
 fi
 
 # ファイルダウンロード
@@ -206,6 +206,10 @@ download_file ".gitignore" "$TICKET_DIR/.gitignore"
 download_file "_guide/ticket-types.md" "$TICKET_DIR/_guide/ticket-types.md"
 download_file "_guide/ticket-lifecycle.md" "$TICKET_DIR/_guide/ticket-lifecycle.md"
 download_file "_guide/reference-files.md" "$TICKET_DIR/_guide/reference-files.md"
+download_file "_guide/issue-tracker-integration.md" "$TICKET_DIR/_guide/issue-tracker-integration.md"
+download_file "_guide/integrations/redmine.md" "$TICKET_DIR/_guide/integrations/redmine.md"
+download_file "_guide/integrations/backlog.md" "$TICKET_DIR/_guide/integrations/backlog.md"
+download_file "_guide/integrations/github.md" "$TICKET_DIR/_guide/integrations/github.md"
 
 # テンプレートファイル
 download_file "_template/bug.md" "$TICKET_DIR/_template/bug.md"
